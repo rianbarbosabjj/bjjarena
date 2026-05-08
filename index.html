@@ -34,7 +34,7 @@
             z-index: 50;
         }
         
-        /* Orbes de fundo animadas */
+        /* Orbes de fundo animadas - tons vermelhos escuros */
         .orb {
             position: fixed;
             border-radius: 50%;
@@ -58,7 +58,7 @@
             right: -100px;
             width: 500px;
             height: 500px;
-            background: radial-gradient(circle, rgba(244, 63, 94, 0.15), transparent 70%);
+            background: radial-gradient(circle, rgba(220, 38, 38, 0.12), transparent 70%);
             animation: float-orb-1 12s ease-in-out infinite;
         }
         
@@ -67,14 +67,14 @@
             left: -80px;
             width: 450px;
             height: 450px;
-            background: radial-gradient(circle, rgba(225, 29, 72, 0.12), transparent 70%);
+            background: radial-gradient(circle, rgba(185, 28, 28, 0.1), transparent 70%);
             animation: float-orb-2 10s ease-in-out infinite;
         }
         
         .glass-card {
             background: rgba(15, 20, 30, 0.6);
             backdrop-filter: blur(16px);
-            border: 1px solid rgba(244, 63, 94, 0.15);
+            border: 1px solid rgba(220, 38, 38, 0.2);
         }
         
         /* Card específico do BJJ Manager com cores do Manager */
@@ -95,8 +95,8 @@
         }
         
         @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); border-color: rgba(244, 63, 94, 0.5); }
-            50% { box-shadow: 0 0 0 12px rgba(244, 63, 94, 0); border-color: rgba(244, 63, 94, 0.8); }
+            0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); border-color: rgba(220, 38, 38, 0.5); }
+            50% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); border-color: rgba(220, 38, 38, 0.8); }
         }
         
         .cta-gradient-manager {
@@ -111,13 +111,13 @@
             box-shadow: 0 10px 30px rgba(6, 182, 212, 0.4);
         }
         
-        /* Scrollbar customizada */
+        /* Scrollbar customizada - vermelha */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #0f111a; }
-        ::-webkit-scrollbar-thumb { background: #f43f5e; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #dc2626; border-radius: 10px; }
     </style>
 </head>
-<body class="text-gray-200 overflow-x-hidden selection:rose-500/30 selection:text-white">
+<body class="text-gray-200 overflow-x-hidden selection:bg-red-500/30 selection:text-white">
 
 <div class="noise-overlay"></div>
 
@@ -132,26 +132,26 @@
         <!-- Logo centralizada -->
         <div class="flex justify-center mb-8">
             <div class="relative inline-block group">
-                <div class="absolute -inset-4 bg-gradient-to-r from-rose-500 to-pink-500 rounded-3xl blur-2xl opacity-40 group-hover:opacity-60 transition duration-700"></div>
-                <img src="logo_bjj_arena_ofc.png" alt="BJJ Arena" class="relative w-32 md:w-44 h-auto mx-auto drop-shadow-[0_0_30px_rgba(244,63,94,0.3)] group-hover:scale-105 transition duration-500">
+                <div class="absolute -inset-4 bg-gradient-to-r from-red-600 to-red-700 rounded-3xl blur-2xl opacity-40 group-hover:opacity-60 transition duration-700"></div>
+                <img src="logo_bjj_arena_ofc.png" alt="BJJ Arena" class="relative w-32 md:w-44 h-auto mx-auto drop-shadow-[0_0_30px_rgba(220,38,38,0.3)] group-hover:scale-105 transition duration-500">
             </div>
         </div>
         
         <!-- Status Badge -->
         <div class="flex justify-center mb-8">
-            <div class="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-rose-500/10 border border-rose-500/40 backdrop-blur-sm badge-pulse">
+            <div class="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-red-500/10 border border-red-500/40 backdrop-blur-sm badge-pulse">
                 <span class="relative flex h-2 w-2">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                 </span>
-                <span class="text-[10px] font-black uppercase tracking-[0.2em] text-rose-400">Sistema em Construção</span>
+                <span class="text-[10px] font-black uppercase tracking-[0.2em] text-red-400">Sistema em Construção</span>
             </div>
         </div>
         
         <!-- Título principal -->
         <h1 class="text-4xl md:text-6xl lg:text-7xl font-black leading-tight tracking-tight mb-6">
             Domine a Organização de
-            <span class="bg-gradient-to-r from-rose-400 to-pink-400 bg-clip-text text-transparent">Campeonatos de Jiu-Jitsu</span>
+            <span class="bg-gradient-to-r from-red-500 to-red-600 bg-clip-text text-transparent">Campeonatos de Jiu-Jitsu</span>
         </h1>
         
         <p class="text-base md:text-lg text-gray-400 max-w-2xl mx-auto font-medium mb-10 leading-relaxed">
@@ -161,23 +161,23 @@
         <!-- Features preview (visual) -->
         <div class="flex flex-wrap justify-center gap-4 mb-16">
             <div class="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                <i class="fas fa-users text-rose-400 text-xs"></i>
+                <i class="fas fa-users text-red-500 text-xs"></i>
                 <span class="text-[10px] font-medium tracking-wide">Inscrições Automáticas</span>
             </div>
             <div class="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                <i class="fas fa-code-branch text-rose-400 text-xs"></i>
+                <i class="fas fa-code-branch text-red-500 text-xs"></i>
                 <span class="text-[10px] font-medium tracking-wide">Chaves Dinâmicas</span>
             </div>
             <div class="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                <i class="fas fa-stopwatch text-rose-400 text-xs"></i>
+                <i class="fas fa-stopwatch text-red-500 text-xs"></i>
                 <span class="text-[10px] font-medium tracking-wide">Cronômetro Integrado</span>
             </div>
             <div class="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                <i class="fas fa-trophy text-rose-400 text-xs"></i>
+                <i class="fas fa-trophy text-red-500 text-xs"></i>
                 <span class="text-[10px] font-medium tracking-wide">Placar em Tempo Real</span>
             </div>
             <div class="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                <i class="fas fa-qrcode text-rose-400 text-xs"></i>
+                <i class="fas fa-qrcode text-red-500 text-xs"></i>
                 <span class="text-[10px] font-medium tracking-wide">Check-in por QR Code</span>
             </div>
         </div>
@@ -225,7 +225,7 @@
             </p>
             <div class="inline-flex flex-col sm:flex-row gap-3 bg-white/5 rounded-2xl p-1 sm:p-1.5 border border-white/10 max-w-md mx-auto">
                 <input type="email" placeholder="Seu melhor e-mail" class="bg-transparent px-5 py-2.5 text-sm text-white placeholder-gray-500 outline-none rounded-xl">
-                <button class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition">
+                <button class="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition">
                     Avise-me
                 </button>
             </div>
@@ -236,9 +236,9 @@
         <div class="mt-16 pt-8 border-t border-white/5">
             <div class="flex flex-col md:flex-row justify-center items-center gap-6 text-[10px] text-gray-500">
                 <div class="flex gap-4">
-                    <a href="#" class="hover:text-rose-400 transition"><i class="fab fa-instagram mr-1"></i> Instagram</a>
-                    <a href="#" class="hover:text-rose-400 transition"><i class="fab fa-youtube mr-1"></i> YouTube</a>
-                    <a href="#" class="hover:text-rose-400 transition"><i class="fab fa-facebook mr-1"></i> Facebook</a>
+                    <a href="#" class="hover:text-red-400 transition"><i class="fab fa-instagram mr-1"></i> Instagram</a>
+                    <a href="#" class="hover:text-red-400 transition"><i class="fab fa-youtube mr-1"></i> YouTube</a>
+                    <a href="#" class="hover:text-red-400 transition"><i class="fab fa-facebook mr-1"></i> Facebook</a>
                 </div>
                 <span>© 2026 BJJ ARENA — Todos os direitos reservados</span>
             </div>
