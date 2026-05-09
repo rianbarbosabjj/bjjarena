@@ -12,6 +12,8 @@
     <link rel="apple-touch-icon" href="https://bjjdigital.com.br/imagens/logo_bjj_arena_ofc.png">
     
     <!-- Google Fonts + Tailwind + Font Awesome -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -21,103 +23,153 @@
         
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #0a0c15 0%, #0f111a 50%, #0a0c15 100%);
+            background: #050505;
+            background: radial-gradient(circle at 50% 0%, #150a0a 0%, #050505 100%);
             min-height: 100vh;
+            color: #e2e8f0;
         }
         
         /* Efeito de ruído sutil */
         .noise-overlay {
             position: fixed;
             inset: 0;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.025'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
             pointer-events: none;
             z-index: 50;
         }
         
-        /* Orbes de fundo animadas - tons vermelhos escuros */
+        /* Orbes de fundo animadas */
         .orb {
             position: fixed;
             border-radius: 50%;
-            filter: blur(80px);
+            filter: blur(100px);
             pointer-events: none;
             z-index: 0;
         }
         
         @keyframes float-orb-1 {
             0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(40px, -30px) scale(1.1); }
+            50% { transform: translate(60px, -40px) scale(1.15); }
         }
         
         @keyframes float-orb-2 {
             0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(-30px, 40px) scale(0.9); }
+            50% { transform: translate(-40px, 60px) scale(0.85); }
         }
         
         .orb-1 {
-            top: -100px;
-            right: -100px;
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, rgba(220, 38, 38, 0.12), transparent 70%);
-            animation: float-orb-1 12s ease-in-out infinite;
+            top: -15%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(220, 38, 38, 0.15), transparent 60%);
+            animation: float-orb-1 15s ease-in-out infinite;
         }
         
         .orb-2 {
-            bottom: -80px;
-            left: -80px;
-            width: 450px;
-            height: 450px;
-            background: radial-gradient(circle, rgba(185, 28, 28, 0.1), transparent 70%);
-            animation: float-orb-2 10s ease-in-out infinite;
+            bottom: -15%;
+            left: -10%;
+            width: 550px;
+            height: 550px;
+            background: radial-gradient(circle, rgba(185, 28, 28, 0.12), transparent 60%);
+            animation: float-orb-2 12s ease-in-out infinite;
+        }
+
+        /* Animações de Entrada (Reveal) */
+        .reveal-up {
+            opacity: 0;
+            transform: translateY(30px);
+            animation: revealUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .delay-100 { animation-delay: 100ms; }
+        .delay-200 { animation-delay: 200ms; }
+        .delay-300 { animation-delay: 300ms; }
+        .delay-400 { animation-delay: 400ms; }
+        .delay-500 { animation-delay: 500ms; }
+
+        @keyframes revealUp {
+            to { opacity: 1; transform: translateY(0); }
         }
         
-        .glass-card {
-            background: rgba(15, 20, 30, 0.6);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(220, 38, 38, 0.2);
+        /* Glassmorphism para os Features */
+        .glass-pill {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        .glass-pill:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(220, 38, 38, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(220, 38, 38, 0.1);
         }
         
-        /* Card específico do BJJ Manager com cores do Manager */
+        /* Card específico do BJJ Manager */
         .manager-card {
-            background: rgba(6, 182, 212, 0.05);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(6, 182, 212, 0.3);
-            transition: all 0.4s ease;
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.6) 0%, rgba(6, 182, 212, 0.03) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transition: all 0.5s ease;
+            position: relative;
+        }
+        
+        .manager-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            opacity: 0.5;
+            z-index: 0;
         }
         
         .manager-card:hover {
-            border-color: rgba(6, 182, 212, 0.6);
-            box-shadow: 0 0 30px rgba(6, 182, 212, 0.15);
+            border-color: rgba(6, 182, 212, 0.5);
+            box-shadow: 0 0 40px rgba(6, 182, 212, 0.2), inset 0 0 20px rgba(6, 182, 212, 0.05);
+            transform: translateY(-4px);
         }
         
         .badge-pulse {
-            animation: pulse-glow 2s infinite;
+            animation: pulse-glow 2.5s infinite;
         }
         
         @keyframes pulse-glow {
             0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); border-color: rgba(220, 38, 38, 0.5); }
-            50% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); border-color: rgba(220, 38, 38, 0.8); }
+            50% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); border-color: rgba(220, 38, 38, 0.9); }
         }
         
         .cta-gradient-manager {
-            background: linear-gradient(90deg, #06b6d4, #0891b2, #06b6d4);
+            background: linear-gradient(135deg, #06b6d4, #0284c7);
             background-size: 200% auto;
-            transition: all 0.4s ease;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .cta-gradient-manager:hover {
             background-position: right center;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(6, 182, 212, 0.4);
+            box-shadow: 0 10px 30px rgba(6, 182, 212, 0.3);
+        }
+
+        /* Custom Inputs */
+        .glass-input {
+            transition: all 0.3s ease;
+        }
+        .glass-input:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(220, 38, 38, 0.5);
+            box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1);
         }
         
         /* Scrollbar customizada - vermelha */
         ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #0f111a; }
+        ::-webkit-scrollbar-track { background: #050505; }
         ::-webkit-scrollbar-thumb { background: #dc2626; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #b91c1c; }
     </style>
 </head>
-<body class="text-gray-200 overflow-x-hidden selection:bg-red-500/30 selection:text-white">
+<body class="overflow-x-hidden selection:bg-red-500/30 selection:text-white">
 
 <div class="noise-overlay"></div>
 
@@ -125,141 +177,154 @@
 <div class="orb orb-1"></div>
 <div class="orb orb-2"></div>
 
-<main class="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-12">
+<main class="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-16 sm:py-20">
     
-    <div class="max-w-5xl mx-auto text-center">
+    <div class="max-w-5xl mx-auto text-center w-full">
         
         <!-- Logo centralizada -->
-        <div class="flex justify-center mb-8">
-            <div class="relative inline-block group">
-                <div class="absolute -inset-4 bg-gradient-to-r from-red-600 to-red-700 rounded-3xl blur-2xl opacity-40 group-hover:opacity-60 transition duration-700"></div>
-                <img src="https://bjjdigital.com.br/imagens/logo_bjj_arena_ofc.png" alt="BJJ Arena" class="relative w-32 md:w-44 h-auto mx-auto drop-shadow-[0_0_30px_rgba(220,38,38,0.3)] group-hover:scale-105 transition duration-500">
+        <div class="flex justify-center mb-8 reveal-up">
+            <div class="relative inline-block group cursor-default">
+                <div class="absolute -inset-6 bg-gradient-to-r from-red-600 to-red-900 rounded-full blur-3xl opacity-30 group-hover:opacity-50 transition duration-700"></div>
+                <img src="https://bjjdigital.com.br/imagens/logo_bjj_arena_ofc.png" alt="BJJ Arena" class="relative w-36 md:w-48 h-auto mx-auto drop-shadow-[0_10px_30px_rgba(220,38,38,0.4)] group-hover:scale-105 group-hover:-translate-y-2 transition duration-500 ease-out">
             </div>
         </div>
         
         <!-- Status Badge -->
-        <div class="flex justify-center mb-8">
-            <div class="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-red-500/10 border border-red-500/40 backdrop-blur-sm badge-pulse">
-                <span class="relative flex h-2 w-2">
+        <div class="flex justify-center mb-10 reveal-up delay-100">
+            <div class="inline-flex items-center gap-2.5 px-6 py-2.5 rounded-full bg-red-950/40 border border-red-500/30 backdrop-blur-md badge-pulse shadow-[0_0_15px_rgba(220,38,38,0.15)]">
+                <span class="relative flex h-2.5 w-2.5">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 shadow-[0_0_8px_#ef4444]"></span>
                 </span>
-                <span class="text-[10px] font-black uppercase tracking-[0.2em] text-red-400">Sistema em Construção</span>
+                <span class="text-[11px] font-black uppercase tracking-[0.25em] text-red-400">Sistema em Construção</span>
             </div>
         </div>
         
         <!-- Título principal -->
-        <h1 class="text-4xl md:text-6xl lg:text-7xl font-black leading-tight tracking-tight mb-6">
-            Domine a Organização de
-            <span class="bg-gradient-to-r from-red-500 to-red-600 bg-clip-text text-transparent">Campeonatos de Jiu-Jitsu</span>
+        <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-tight tracking-tight mb-6 reveal-up delay-200">
+            Domine a Organização de <br class="hidden md:block">
+            <span class="bg-gradient-to-r from-red-400 via-red-500 to-red-700 bg-clip-text text-transparent drop-shadow-sm">Campeonatos de Jiu-Jitsu</span>
         </h1>
         
-        <p class="text-base md:text-lg text-gray-400 max-w-2xl mx-auto font-medium mb-10 leading-relaxed">
-            A solução definitiva para promotores de eventos. Inscrições automáticas, chaves dinâmicas (brackets), cronômetros integrados, placar em tempo real e checagem oficial de atletas.
+        <p class="text-base md:text-lg text-gray-400 max-w-2xl mx-auto font-medium mb-12 leading-relaxed reveal-up delay-300">
+            A solução definitiva para promotores de eventos. Inscrições automáticas, chaves dinâmicas, cronômetros integrados, placar em tempo real e checagem oficial de atletas.
         </p>
         
-        <!-- Features preview (visual) -->
-        <div class="flex flex-wrap justify-center gap-4 mb-16">
-            <div class="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                <i class="fas fa-users text-red-500 text-xs"></i>
-                <span class="text-[10px] font-medium tracking-wide">Inscrições Automáticas</span>
+        <!-- Features preview (Visual Premium) -->
+        <div class="flex flex-wrap justify-center gap-3 sm:gap-4 mb-20 reveal-up delay-400">
+            <div class="glass-pill flex items-center gap-3 px-5 py-3 rounded-full cursor-default">
+                <div class="bg-red-500/10 p-1.5 rounded-full"><i class="fas fa-users text-red-500 text-sm"></i></div>
+                <span class="text-xs sm:text-sm font-semibold tracking-wide text-gray-300">Inscrições Automáticas</span>
             </div>
-            <div class="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                <i class="fas fa-code-branch text-red-500 text-xs"></i>
-                <span class="text-[10px] font-medium tracking-wide">Chaves Dinâmicas</span>
+            <div class="glass-pill flex items-center gap-3 px-5 py-3 rounded-full cursor-default">
+                <div class="bg-red-500/10 p-1.5 rounded-full"><i class="fas fa-code-branch text-red-500 text-sm"></i></div>
+                <span class="text-xs sm:text-sm font-semibold tracking-wide text-gray-300">Chaves Dinâmicas</span>
             </div>
-            <div class="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                <i class="fas fa-stopwatch text-red-500 text-xs"></i>
-                <span class="text-[10px] font-medium tracking-wide">Cronômetro Integrado</span>
+            <div class="glass-pill flex items-center gap-3 px-5 py-3 rounded-full cursor-default">
+                <div class="bg-red-500/10 p-1.5 rounded-full"><i class="fas fa-stopwatch text-red-500 text-sm"></i></div>
+                <span class="text-xs sm:text-sm font-semibold tracking-wide text-gray-300">Cronômetro Integrado</span>
             </div>
-            <div class="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                <i class="fas fa-trophy text-red-500 text-xs"></i>
-                <span class="text-[10px] font-medium tracking-wide">Placar em Tempo Real</span>
-            </div>
-            <div class="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                <i class="fas fa-qrcode text-red-500 text-xs"></i>
-                <span class="text-[10px] font-medium tracking-wide">Check-in por QR Code</span>
+            <div class="glass-pill flex items-center gap-3 px-5 py-3 rounded-full cursor-default">
+                <div class="bg-red-500/10 p-1.5 rounded-full"><i class="fas fa-trophy text-red-500 text-sm"></i></div>
+                <span class="text-xs sm:text-sm font-semibold tracking-wide text-gray-300">Placar em Tempo Real</span>
             </div>
         </div>
         
-        <!-- Card de Promoção do BJJ Manager (com cores do Manager) -->
-        <div class="manager-card rounded-3xl p-8 md:p-10 max-w-2xl mx-auto relative overflow-hidden group">
-            <div class="absolute -top-20 -right-20 w-64 h-64 bg-cyan-500/5 rounded-full blur-[60px] group-hover:bg-cyan-500/10 transition"></div>
+        <!-- Card de Promoção do BJJ Manager -->
+        <div class="manager-card rounded-3xl p-8 sm:p-12 max-w-3xl mx-auto overflow-hidden group reveal-up delay-500">
+            <!-- Glow Effect interno -->
+            <div class="absolute -top-32 -right-32 w-80 h-80 bg-cyan-500/10 rounded-full blur-[80px] group-hover:bg-cyan-500/20 transition duration-700"></div>
+            <div class="absolute -bottom-32 -left-32 w-80 h-80 bg-blue-500/10 rounded-full blur-[80px] group-hover:bg-blue-500/20 transition duration-700"></div>
             
             <div class="relative z-10">
                 <!-- Logo do Manager -->
                 <div class="flex justify-center mb-6">
-                    <img src="https://manager.bjjdigital.com.br/logo_bjj_manager.png" alt="BJJ Manager" class="h-14 md:h-16 w-auto drop-shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+                    <img src="https://manager.bjjdigital.com.br/logo_bjj_manager.png" alt="BJJ Manager" class="h-14 sm:h-16 w-auto drop-shadow-[0_0_20px_rgba(6,182,212,0.5)]">
                 </div>
                 
-                <h2 class="text-xl md:text-2xl font-bold text-white mb-3">
-                    Enquanto isso, transforme sua academia agora mesmo!
+                <h2 class="text-2xl sm:text-3xl font-bold text-white mb-4">
+                    Transforme a gestão da sua academia <span class="text-cyan-400">hoje mesmo!</span>
                 </h2>
                 
-                <p class="text-sm text-gray-300 mb-6 max-w-md mx-auto">
-                    Tenha a gestão completa da sua equipe na palma da mão com o <strong class="text-cyan-400">BJJ Manager</strong> — o sistema que já está revolucionando academias em todo o Brasil.
+                <p class="text-sm sm:text-base text-gray-300 mb-8 max-w-lg mx-auto leading-relaxed">
+                    Enquanto o Arena não chega, tenha a gestão completa da sua equipe na palma da mão com o <strong>BJJ Manager</strong> — o sistema que já revoluciona academias no Brasil inteiro.
                 </p>
                 
-                <!-- Botão CTA com cores do Manager -->
-                <a href="https://manager.bjjdigital.com.br/" target="_blank" class="cta-gradient-manager inline-flex items-center gap-3 px-8 py-4 rounded-xl font-black text-sm uppercase tracking-widest text-white shadow-xl transition-all">
+                <!-- Botão CTA -->
+                <a href="https://manager.bjjdigital.com.br/" target="_blank" class="cta-gradient-manager inline-flex items-center gap-3 px-8 py-4 rounded-xl font-black text-sm uppercase tracking-widest text-white shadow-xl hover:-translate-y-1">
                     <i class="fas fa-rocket"></i>
                     Conhecer o BJJ Manager
-                    <i class="fas fa-arrow-right text-xs transition-transform group-hover:translate-x-1"></i>
+                    <i class="fas fa-arrow-right text-sm transition-transform group-hover:translate-x-1.5"></i>
                 </a>
                 
-                <!-- Selo de qualidade com cores do Manager -->
-                <div class="mt-6 flex items-center justify-center gap-4 text-[10px] text-gray-400">
-                    <span class="flex items-center gap-1"><i class="fas fa-check-circle text-cyan-400/60 text-[8px]"></i> Gestão completa</span>
-                    <span class="w-1 h-1 bg-gray-600 rounded-full"></span>
-                    <span class="flex items-center gap-1"><i class="fas fa-check-circle text-cyan-400/60 text-[8px]"></i> Carteirinha digital</span>
-                    <span class="w-1 h-1 bg-gray-600 rounded-full"></span>
-                    <span class="flex items-center gap-1"><i class="fas fa-check-circle text-cyan-400/60 text-[8px]"></i> Automação financeira</span>
+                <!-- Selos de qualidade -->
+                <div class="mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-[11px] sm:text-xs text-cyan-100/70 font-medium">
+                    <span class="flex items-center gap-1.5"><i class="fas fa-check-circle text-cyan-400"></i> Gestão completa</span>
+                    <span class="hidden sm:block w-1.5 h-1.5 bg-gray-600 rounded-full"></span>
+                    <span class="flex items-center gap-1.5"><i class="fas fa-check-circle text-cyan-400"></i> Carteirinha digital</span>
+                    <span class="hidden sm:block w-1.5 h-1.5 bg-gray-600 rounded-full"></span>
+                    <span class="flex items-center gap-1.5"><i class="fas fa-check-circle text-cyan-400"></i> Automação financeira</span>
                 </div>
             </div>
         </div>
         
         <!-- Newsletter / Cadastro de interesse -->
-        <div class="mt-12 text-center">
-            <p class="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-3">
-                <i class="fas fa-envelope mr-1"></i> Quer ser avisado quando lançarmos?
+        <div class="mt-20 text-center reveal-up delay-500">
+            <p class="text-[11px] text-gray-400 font-bold uppercase tracking-[0.25em] mb-4 flex items-center justify-center gap-2">
+                <i class="fas fa-envelope text-red-500"></i> Seja o primeiro a saber do lançamento
             </p>
-            <div class="inline-flex flex-col sm:flex-row gap-3 bg-white/5 rounded-2xl p-1 sm:p-1.5 border border-white/10 max-w-md mx-auto">
-                <input type="email" placeholder="Seu melhor e-mail" class="bg-transparent px-5 py-2.5 text-sm text-white placeholder-gray-500 outline-none rounded-xl">
-                <button class="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition">
+            <div class="flex flex-col sm:flex-row gap-3 bg-white/5 rounded-2xl p-1.5 border border-white/10 max-w-md mx-auto shadow-2xl backdrop-blur-sm relative z-20">
+                <input type="email" placeholder="Digite seu melhor e-mail" class="glass-input w-full bg-transparent px-5 py-3.5 text-sm text-white placeholder-gray-500 outline-none rounded-xl border border-transparent">
+                <button class="bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white px-8 py-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg hover:shadow-red-500/25 shrink-0">
                     Avise-me
                 </button>
             </div>
-            <p class="text-[9px] text-gray-600 mt-3">Não enviaremos spam. Apenas uma notificação quando estivermos prontos.</p>
+            <p class="text-[10px] text-gray-500 mt-4 font-medium"><i class="fas fa-shield-alt mr-1"></i> Prometemos não enviar spam. Apenas atualizações cruciais.</p>
         </div>
         
         <!-- Rodapé minimalista -->
-        <div class="mt-16 pt-8 border-t border-white/5">
-            <div class="flex flex-col md:flex-row justify-center items-center gap-6 text-[10px] text-gray-500">
-                <div class="flex gap-4">
-                    <a href="#" class="hover:text-red-400 transition"><i class="fab fa-instagram mr-1"></i> Instagram</a>
-                    <a href="#" class="hover:text-red-400 transition"><i class="fab fa-youtube mr-1"></i> YouTube</a>
-                    <a href="#" class="hover:text-red-400 transition"><i class="fab fa-facebook mr-1"></i> Facebook</a>
+        <footer class="mt-24 pt-8 border-t border-white/10 reveal-up delay-500">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-6 text-[11px] text-gray-500 font-medium">
+                <span>© 2026 BJJ ARENA. Todos os direitos reservados.</span>
+                <div class="flex gap-6">
+                    <a href="#" class="hover:text-red-400 transition flex items-center gap-1.5"><i class="fab fa-instagram text-sm"></i> Instagram</a>
+                    <a href="#" class="hover:text-red-400 transition flex items-center gap-1.5"><i class="fab fa-youtube text-sm"></i> YouTube</a>
+                    <a href="#" class="hover:text-red-400 transition flex items-center gap-1.5"><i class="fab fa-facebook text-sm"></i> Facebook</a>
                 </div>
-                <span>© 2026 BJJ ARENA — Todos os direitos reservados</span>
             </div>
-        </div>
+        </footer>
         
     </div>
 </main>
 
-<!-- Script simples para o botão de newsletter (demo) -->
+<!-- Script simples para o botão de newsletter -->
 <script>
-    const notifyBtn = document.querySelector('.inline-flex button');
-    if (notifyBtn) {
+    const notifyBtn = document.querySelector('button');
+    const input = document.querySelector('input[type="email"]');
+    
+    if (notifyBtn && input) {
         notifyBtn.addEventListener('click', () => {
-            const input = document.querySelector('input[type="email"]');
-            const email = input?.value.trim();
+            const email = input.value.trim();
             if (!email || !email.includes('@')) {
                 alert('Por favor, insira um e-mail válido.');
+                input.focus();
                 return;
             }
-            alert(`📩 Obrigado! Avisaremos ${email} assim que o BJJ Arena for lançado.`);
-            input.value = '';
+            
+            // Simulação de loading
+            const originalText = notifyBtn.innerHTML;
+            notifyBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+            
+            setTimeout(() => {
+                alert(`📩 Sucesso! O e-mail ${email} foi cadastrado na nossa lista VIP.`);
+                input.value = '';
+                notifyBtn.innerHTML = originalText;
+            }, 800);
+        });
+        
+        // Permitir envio com tecla Enter
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') notifyBtn.click();
         });
     }
 </script>
