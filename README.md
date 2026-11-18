@@ -1,54 +1,59 @@
-# BJJ Arena · versão 0.2
+# BJJ Arena · versão 0.3
 
-Sistema de gestão de competições de jiu-jitsu do ecossistema BJJ Digital. Esta versão de desenvolvimento substitui a página de espera por três áreas navegáveis e mantém o laboratório esportivo da primeira versão.
+Gestão de competições de jiu-jitsu com a marca oficial BJJ Arena. As páginas de competições, atleta e gestor agora usam uma API autenticada e banco D1. O ambiente publicado permanece privado e exclusivo para desenvolvimento: todos os eventos criados são de teste e não realizam cobranças.
 
-## Marca oficial
+## Entrega desta versão
 
-Logo original: `assets/logo_bjj_arena_ofc.png`, preservada sem redesenho. Paleta: vermelho, preto e tons de prata/cinza. A logo já era referenciada pela página original deste repositório em `bjjdigital.com.br/imagens/logo_bjj_arena_ofc.png`.
+- Identidade fornecida pelo acesso autenticado da hospedagem, com ID estável por site. O perfil esportivo é vinculado à sessão no servidor; o navegador não escolhe o usuário de uma inscrição.
+- Cadastro de organização e vínculo de proprietário. Cada gestor acessa apenas os eventos da sua organização. A criação idempotente permite uma organização por proprietário nesta etapa.
+- Criação e revisão de rascunho de evento de teste com data, prazo, local, preço em centavos, categorias disponíveis e texto do edital.
+- Ciclo do evento: rascunho → publicado/em breve → inscrições abertas → inscrições encerradas, com versão para detectar comandos desatualizados.
+- Perfil do atleta persistido, inscrições pendentes e consulta pelo portal. O servidor confere categoria, prazo, edital aceito e preço; uma restrição única impede duplicidade ativa.
+- A checagem pública contém somente identificador da inscrição, nome esportivo, equipe e categoria. Inscrições pendentes não aparecem.
+- A confirmação/estorno de teste exige permissão de gestão do evento, mantém indicação explícita de simulação e registra auditoria. Não existe confirmação pelo portal do atleta.
+- Os dados da inscrição preservam a equipe e o nome representados no momento da inscrição, mesmo após editar o perfil.
+- CSV de inscrições e histórico de operações por evento.
 
-## Páginas
+## Entradas
 
-| Entrada | Função |
+| Página | Função |
 | --- | --- |
-| `index.html` | Competições abertas/em breve, filtros, página do evento, edital, inscrição e checagem pública. |
-| `atleta.html` | Cadastro demonstrativo do atleta, inscrições, situação do pagamento e acesso à checagem. |
-| `gestor.html` | Painel do evento, inscrições, pagamentos, checagem e consulta ao edital. |
-| `operacao/index.html` | Laboratório esportivo: placar, chaves, resultados e classificação parcial. Usa dados de teste próprios. |
+| `/index.html` | Competições publicadas, edital, inscrição e checagem. |
+| `/atleta.html` | Perfil esportivo, inscrições e situação do pagamento. |
+| `/gestor.html` | Organização, criação/publicação de eventos, inscritos, operações de teste e histórico. |
+| `/operacao/index.html` | Laboratório esportivo anterior: placar e chaves com dados fictícios próprios salvos no navegador. Ainda não usa as inscrições da API. |
 
-## Regra de pagamento e publicação
+Os três portais usam dados do servidor. Não há importação automática dos dados locais do protótipo 0.2. As cores vermelho, preto e prata/cinza e a logo original `assets/logo_bjj_arena_ofc.png` foram preservadas.
 
-1. Criar um cadastro de atleta não publica seu nome.
-2. Criar uma inscrição gera pagamento **pendente**.
-3. Abrir um checkout não confirma o pagamento.
-4. Na operação real, somente o servidor validará a notificação autenticada e consultará o provedor para conferir cobrança, referência, organizador, moeda, valor e estado atual.
-5. Apenas inscrição ativa com pagamento **confirmado** entra na checagem pública e na seleção de participantes para chaves.
-6. Eventos repetidos são idempotentes. Estorno/chargeback remove a elegibilidade, e uma confirmação atrasada não a restaura silenciosamente.
+## Pagamentos
 
-`server/registration-service.mjs` implementa esse contrato de domínio, com injeção de repositório transacional e adaptador de pagamento. Os testes usam um repositório e gateway de teste. **Ainda não há API de pagamento implantada nem conexão com um provedor real.**
+Nenhuma cobrança real está habilitada. O serviço `server/registration-service.mjs` preserva o contrato e os testes do adaptador futuro: autenticar a notificação e consultar a cobrança no provedor, validando valor, moeda, conta, referência e estado atual. Ele ainda não está conectado às rotas desta versão.
 
-## Executar e verificar
+A rota `/api/registrations/:id/test-payment` é restrita a gestor e a eventos `kind=test`; registra `payment_source=test`. Um evento estornado não volta a ser confirmado por uma mensagem atrasada. As rotas de pagamento real respondem indisponível. Antes de abrir inscrições reais, concluir o adaptador, webhook e repositório transacional do fluxo real, definir conta de recebimento e validar o sandbox.
 
-Node.js 20 ou superior, sem dependências de execução:
+## Persistência e autorização
+
+- `db/schema.ts` define organizações, vínculos, perfis, eventos, inscrições e auditoria. As migrações SQL e metadados estão em `drizzle/`.
+- `server/platform.mjs` contém regras de acesso e operações D1. Escritas relacionadas usam `batch()` atômico; perfis, eventos e inscrições usam controle de versão.
+- `app/api/[...path]/route.ts` obtém a identidade autenticada pela hospedagem e encaminha as operações. Os cabeçalhos de identidade só são confiáveis atrás da fronteira da hospedagem; não expor esse Worker diretamente sem filtragem equivalente.
+- Escritas exigem JSON e origem igual à aplicação; respostas da API usam `private, no-store`. Nenhuma credencial integra o código do navegador.
+- `.openai/hosting.json` mantém a identidade da hospedagem e o vínculo `DB`. A migração é aplicada pela publicação; não se criam tabelas durante requisições.
+- Os arquivos HTML, CSS e JS da raiz são autorais. `scripts/sync-assets.mjs` gera `public/` antes de iniciar o preview e de compilar; não editar cópias em `public/`.
+
+## Verificação
+
+Node.js 22.13 ou superior. Os testes da plataforma persistente usam `node:sqlite`, disponível no runtime Node 24 utilizado na entrega.
 
 ```sh
 npm test
+npm run db:generate
 npm run build
 ```
 
-Servir `dist/` em HTTP. Os módulos do servidor e os testes não entram no pacote estático. Não foi criado workflow do GitHub Actions.
+Os testes cobrem o motor esportivo anterior, o contrato de pagamentos e a nova API: isolamento de organizadores, pendência fora da checagem, confirmação restrita, estorno, unicidade, prazo no fuso do evento, aceitação de edital, preço autoritativo, privacidade, conflitos de versão, rollback e persistência após reabrir o banco. O ensaio SQLite não substitui teste concorrente em D1 distribuído ou carga de campeonato real.
 
-## Limites desta demonstração
+O starter Vinext e as integrações de hospedagem são preservados. Não foi criado workflow do GitHub Actions. Não há credenciais compartilhadas com BJJ Manager, Sign ou Exams.
 
-- Eventos, preços, confirmações e atletas são fictícios. Nenhuma cobrança é realizada.
-- As páginas usam localStorage (`bjj-arena-platform-demo-v2`); abas na mesma origem recebem atualizações locais.
-- O cadastro é um perfil demonstrativo; não é uma conta autenticada. Não há senhas ou dados de cartão no protótipo.
-- O botão “Simular pagamento aprovado” existe exclusivamente para exercitar o fluxo. Ele não integra o serviço de pagamento real.
-- A separação entre gestor e atleta é uma separação de interfaces, ainda sem autorização no servidor.
-- O laboratório de lutas guarda seus próprios dados e não gera as chaves das novas inscrições deste módulo.
-- O motor esportivo implementa apenas parte das regras de referência. Precisa de homologação antes de um evento real.
+## Próximas entregas
 
-## Próxima entrega
-
-Conectar autenticação, repositório persistente e permissões do BJJ Arena; selecionar e configurar o provedor e sua conta de recebimento; implementar o adaptador e a rota de webhook verificada; conectar as páginas à API; integrar inscrições elegíveis ao cronograma e às chaves.
-
-O código desta branch preserva os outros produtos BJJ. A integração de identidade do ecossistema será feita por identidade verificada, sem compartilhar dados por coincidência de nomes.
+Conectar o provedor real e a confirmação verificada; completar e homologar a matriz esportiva; integrar inscrições elegíveis às chaves e ao cronograma; atribuir funções operacionais por evento; sincronizar placar e resultados entre dispositivos; ensaiar concorrência, perda de conexão, backup e restauração antes do piloto.
