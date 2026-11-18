@@ -55,6 +55,19 @@ test('drafts can be regenerated with version checks and no published participant
  const f=await fixture(),a=await generate(f),b=await generate(f,a.version);assert.equal(b.version,a.version+1);
  await rejects(()=>generate(f,a.version));assert.equal((await f.sports.publicView(f.event.id)).status,'empty');
 });
+test('open or upcoming registrations expose only checking even if a historical published bracket exists',async()=>{
+ const f=await fixture({count:2,pending:1});await publish(f);
+ for(const status of ['open','soon']){
+  // Simulate a legacy/imported row; normal lifecycle already blocks reopening published brackets.
+  f.db.raw.prepare('UPDATE arena_events SET status=? WHERE id=?').run(status,f.event.id);
+  const response=await handleArenaRequest(new Request(`https://arena.test/api/events/${f.event.id}/brackets`),{db:f.db,user:null});
+  assert.equal(response.status,200);const data=await response.json();assert.equal(data.status,'empty');
+  assert.deepEqual(data.categories,[]);assert.deepEqual(data.athletes,[]);assert.deepEqual(data.teams,[]);
+  assert.equal((await f.p.checking(f.event.id)).length,2);
+ }
+ f.db.raw.prepare("UPDATE arena_events SET status='closed' WHERE id=?").run(f.event.id);
+ assert.equal((await f.sports.publicView(f.event.id)).status,'published');
+});
 test('published brackets expose only sport fields, with no actual weight, birth year, auth IDs, or payment',async()=>{
  const f=await fixture();await publish(f);await checkAll(f);
  const publicData=await f.sports.publicView(f.event.id);assert.equal(publicData.status,'published');

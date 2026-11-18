@@ -1,6 +1,7 @@
 import { CATEGORIES } from '../commerce.mjs';
 import { makeCategory, applyCommand, participants, matchStatus, placements } from '../operacao/engine.mjs';
 import { PlatformError } from './errors.mjs';
+import { canViewPublicBrackets } from '../public-visibility.mjs';
 
 const ensure = (condition, message, status = 409) => { if (!condition) throw new PlatformError(message, status); };
 const RULES = { Branca: 300, Azul: 360, Roxa: 420 };
@@ -40,8 +41,8 @@ export class ArenaCompetition {
     const row = await this.p.first("SELECT e.status AS event_status,e.roster_version AS current_roster_version,c.data,c.version,c.source_roster_version,c.published_at FROM arena_events e LEFT JOIN arena_competitions c ON c.event_id=e.id WHERE e.id=? AND e.status IN ('soon','open','closed')",eventId);
     ensure(row, 'Competição não encontrada.', 404);
     const base = { status: 'empty', serverNow: this.p.now(), categories: [], athletes: [], teams: [] };
-    if (!row?.published_at) return base;
-    if (row.source_roster_version !== row.current_roster_version || row.event_status !== 'closed') return { ...base, status: 'review' };
+    if (!canViewPublicBrackets({status:row.event_status}) || !row.published_at) return base;
+    if (row.source_roster_version !== row.current_roster_version) return { ...base, status: 'review' };
     const state = JSON.parse(row.data);
     return {
       ...base, status: 'published', version: row.version, publishedAt: row.published_at,
