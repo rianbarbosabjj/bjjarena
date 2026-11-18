@@ -17,6 +17,7 @@ export const events = sqliteTable('arena_events', {
   id: text('id').primaryKey(), organizerId: text('organizer_id').notNull().references(() => organizers.id),
   data: text('data').notNull(), status: text('status').notNull().default('draft'),
   kind: text('kind').notNull().default('test'), version: integer('version').notNull().default(1),
+  rosterVersion: integer('roster_version').notNull().default(0),
   createdAt: text('created_at').notNull(), updatedAt: text('updated_at').notNull(),
 });
 export const registrations = sqliteTable('arena_registrations', {
@@ -32,4 +33,10 @@ export const audit = sqliteTable('arena_audit', {
   id: text('id').primaryKey(), organizerId: text('organizer_id').notNull().references(() => organizers.id),
   eventId: text('event_id'), actorId: text('actor_id').notNull(), action: text('action').notNull(),
   resourceId: text('resource_id').notNull(), details: text('details').notNull(), at: text('at').notNull(),
+});
+export const competitions = sqliteTable('arena_competitions', {
+  eventId: text('event_id').primaryKey().references(() => events.id),
+  data: text('data').notNull(), version: integer('version').notNull().default(1),
+  sourceRosterVersion: integer('source_roster_version').notNull(),
+  publishedAt: text('published_at'), createdAt: text('created_at').notNull(), updatedAt: text('updated_at').notNull(),
 });

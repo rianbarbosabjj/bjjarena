@@ -1,28 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DatabaseSync } from 'node:sqlite';
-import { readFileSync, readdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { ArenaPlatform, handleArenaRequest } from '../server/platform.mjs';
+import { LocalD1 } from './helpers/local-d1.mjs';
 
-class LocalD1 {
-  constructor(path = ':memory:') { this.raw = new DatabaseSync(path); this.raw.exec('PRAGMA foreign_keys=ON'); }
-  prepare(sql) {
-    const db = this.raw;
-    return { bind(...args) { return {
-      async first() { return db.prepare(sql).get(...args) || null; },
-      async all() { return { results: db.prepare(sql).all(...args) }; },
-      async run() { const r = db.prepare(sql).run(...args); return { meta: { changes: Number(r.changes) } }; },
-    }; } };
-  }
-  async batch(stmts) {
-    this.raw.exec('BEGIN IMMEDIATE');
-    try { const result = []; for (const s of stmts) result.push(await s.run()); this.raw.exec('COMMIT'); return result; }
-    catch (e) { this.raw.exec('ROLLBACK'); throw e; }
-  }
-  migrate() { for (const f of readdirSync(new URL('../drizzle', import.meta.url)).filter(f => f.endsWith('.sql')).sort()) this.raw.exec(readFileSync(new URL('../drizzle/' + f, import.meta.url), 'utf8')); }
-}
 const owner = { userId: 'owner', displayName: 'Organizador' }, athlete = { userId: 'athlete', displayName: 'Atleta' }, outsider = { userId: 'outsider', displayName: 'Outra pessoa' };
 const profile = { name: 'Atleta de Teste', team: 'Equipe Arena', belt: 'Azul', sex: 'Masculino', birthYear: 1997 };
 const eventInput = { name: 'Arena Teste', city: 'Brasília', uf: 'DF', date: '2027-02-20', deadline: '2027-02-10', venue: 'Ginásio de teste', price: 13990, categoryIds: ['adulto-azul-leve'], regulationText: 'Edital de teste. Nenhuma cobrança real.' };

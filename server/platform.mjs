@@ -1,8 +1,7 @@
 import { CATEGORIES } from '../commerce.mjs';
-
-export class PlatformError extends Error {
-  constructor(message, status = 400) { super(message); this.status = status; }
-}
+import { ArenaCompetition } from './competition.mjs';
+import { PlatformError } from './errors.mjs';
+export { PlatformError } from './errors.mjs';
 const ensure = (value, message, status = 400) => { if (!value) throw new PlatformError(message, status); };
 const text = (v, label, max = 100) => {
   ensure(typeof v === 'string' && v.trim().length >= 2 && v.trim().length <= max, `Confira ${label}.`);
@@ -15,7 +14,7 @@ const isoDate = (v, label) => {
   return v;
 };
 const today = now => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now));
-const eventDto = row => row ? { ...JSON.parse(row.data), id: row.id, organizerId: row.organizer_id, status: row.status, kind: row.kind, version: row.version } : null;
+const eventDto = row => row ? { ...JSON.parse(row.data), id: row.id, organizerId: row.organizer_id, status: row.status, kind: row.kind, version: row.version, rosterVersion: row.roster_version } : null;
 const profileDto = row => row ? { ...JSON.parse(row.data), id: row.user_id, version: row.version } : null;
 const registrationDto = row => ({ id: row.id, eventId: row.event_id, athleteId: row.athlete_id, athlete: JSON.parse(row.athlete_data), categoryId: row.category_id, amountCents: row.amount_cents, currency: row.currency, regulationVersion: row.regulation_version, status: row.status, payment: { status: row.payment_status, source: row.payment_source }, version: row.version, createdAt: row.created_at });
 
@@ -120,10 +119,10 @@ export class ArenaPlatform {
     ensure(permitted[e.status]?.includes(input.action), 'Esta mudança não é permitida no estado atual.', 409);
     if (input.action === 'open') ensure(e.deadline >= today(this.now()), 'O prazo de inscrição já terminou.', 409);
     const result = await this.db.batch([
-      this.stmt('UPDATE arena_events SET status=?,version=version+1,updated_at=? WHERE id=? AND version=?', nextStatus, this.now(), eventId, input.version),
+      this.stmt("UPDATE arena_events SET status=?,version=version+1,updated_at=? WHERE id=? AND version=? AND (? != 'open' OR NOT EXISTS (SELECT 1 FROM arena_competitions WHERE event_id=? AND published_at IS NOT NULL))", nextStatus, this.now(), eventId, input.version, nextStatus, eventId),
       this.auditStatement(uid, e.organizerId, eventId, `event.${input.action}`, eventId, { from: e.status, to: nextStatus }, 'WHERE changes() = 1'),
     ]);
-    ensure(result[0].meta.changes === 1, 'A competição mudou. Atualize a página.', 409);
+    ensure(result[0].meta.changes === 1, 'A competição mudou ou suas chaves já estão publicadas. Atualize a página.', 409);
     return this.managedEvent(user, eventId);
   }
   async register(user, input) {
@@ -168,6 +167,7 @@ export class ArenaPlatform {
     ensure(next === 'confirmed' ? row.payment_status === 'pending' : row.payment_status === 'confirmed', 'Este pagamento não permite essa transição.', 409);
     const result = await this.db.batch([
       this.stmt("UPDATE arena_registrations SET payment_status=?,payment_source='test',version=version+1,updated_at=? WHERE id=? AND version=? AND payment_status=? AND status='active'", next, this.now(), registrationId, input.version, row.payment_status),
+      this.stmt('UPDATE arena_events SET roster_version=roster_version+1 WHERE id=? AND changes()=1', e.id),
       this.auditStatement(user.userId, e.organizerId, e.id, `payment.test.${input.action}`, registrationId, { from: row.payment_status, to: next, source: 'test' }, 'WHERE changes() = 1'),
     ]);
     ensure(result[0].meta.changes === 1, 'O pagamento mudou. Atualize a página.', 409);
@@ -183,7 +183,7 @@ export async function handleArenaRequest(request, { db, user, now = undefined, i
   const headers = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' };
   try {
     ensure(db, 'O serviço está temporariamente indisponível. Tente novamente.', 503);
-    const service = new ArenaPlatform(db, { now, id }), url = new URL(request.url), method = request.method;
+    const service = new ArenaPlatform(db, { now, id }), sports = new ArenaCompetition(service), url = new URL(request.url), method = request.method;
     const path = url.pathname.replace(/^\/api/, '').split('/').filter(Boolean).map(decodeURIComponent);
     let input = {};
     if (['POST','PUT','PATCH','DELETE'].includes(method)) {
@@ -204,6 +204,11 @@ export async function handleArenaRequest(request, { db, user, now = undefined, i
     else if (path[0] === 'events' && path.length === 3 && method === 'GET' && path[2] === 'checking') result = await service.checking(path[1]);
     else if (path[0] === 'events' && path.length === 3 && method === 'GET' && path[2] === 'registrations') result = await service.listRegistrations(user, path[1]);
     else if (path[0] === 'events' && path.length === 3 && method === 'GET' && path[2] === 'audit') result = await service.audit(user, path[1]);
+    else if (path[0] === 'events' && path.length === 3 && method === 'GET' && path[2] === 'brackets') result = await sports.publicView(path[1]);
+    else if (path[0] === 'events' && path.length === 3 && method === 'GET' && path[2] === 'competition') result = await sports.managerView(user, path[1]);
+    else if (path[0] === 'events' && path.length === 4 && method === 'POST' && path[2] === 'competition' && path[3] === 'generate') result = await sports.generate(user, path[1], input);
+    else if (path[0] === 'events' && path.length === 4 && method === 'POST' && path[2] === 'competition' && path[3] === 'publication') result = await sports.publication(user, path[1], input);
+    else if (path[0] === 'events' && path.length === 4 && method === 'POST' && path[2] === 'competition' && path[3] === 'commands') result = await sports.command(user, path[1], input);
     else if (path.join('/') === 'registrations' && method === 'POST') { result = await service.register(user, input); status = 201; }
     else if (path[0] === 'registrations' && path.length === 3 && path[2] === 'test-payment' && method === 'POST') result = await service.testPayment(user, path[1], input);
     else if ((path[0] === 'payments' || path[2] === 'checkout') && method === 'POST') throw new PlatformError('Pagamentos reais ainda não estão habilitados.', 503);
