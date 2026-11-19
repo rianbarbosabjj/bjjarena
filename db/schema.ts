@@ -40,3 +40,11 @@ export const competitions = sqliteTable('arena_competitions', {
   sourceRosterVersion: integer('source_roster_version').notNull(),
   publishedAt: text('published_at'), createdAt: text('created_at').notNull(), updatedAt: text('updated_at').notNull(),
 });
+export const competitionReviews = sqliteTable('arena_competition_reviews', {
+  id: text('id').primaryKey(), eventId: text('event_id').notNull().references(() => events.id),
+  fromVersion: integer('from_version').notNull(), toVersion: integer('to_version').notNull(),
+  fromRosterVersion: integer('from_roster_version').notNull(), toRosterVersion: integer('to_roster_version').notNull(),
+  actorId: text('actor_id').notNull(), reason: text('reason').notNull(),
+  previousData: text('previous_data').notNull(), nextData: text('next_data').notNull(),
+  details: text('details').notNull(), createdAt: text('created_at').notNull(),
+}, t => [uniqueIndex('arena_review_from_version').on(t.eventId,t.fromVersion)]);

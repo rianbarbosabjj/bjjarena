@@ -1,4 +1,4 @@
-# BJJ Arena · versão 0.5
+# BJJ Arena · versão 0.6
 
 Gestão de competições de jiu-jitsu com a marca oficial BJJ Arena. As páginas de competições, atleta e gestor agora usam uma API autenticada e banco D1. O ambiente publicado permanece privado e exclusivo para desenvolvimento: todos os eventos criados são de teste e não realizam cobranças.
 
@@ -24,7 +24,7 @@ Cada comando usa a versão atual do agregado e grava estado e auditoria no mesmo
 
 Enquanto as inscrições estiverem abertas ou em breve, o público consulta apenas a checagem de atletas confirmados, sem aba nem atalho de chaves. Um link direto de chaves conduz à checagem. Depois do encerramento, a página do evento libera a aba **Chaves e resultados**, e o atleta pode acompanhar a chave a partir da sua inscrição. Os confrontos só são exibidos após a publicação pelo gestor; o servidor também bloqueia sua consulta antecipada. A consulta recebe uma projeção de dados esportivos; peso medido, ano de nascimento, identidade de acesso, pagamentos e histórico interno não são publicados. O acompanhamento atualiza a cada oito segundos; o relógio exibido usa a referência temporal recebida do servidor.
 
-Uma alteração de elegibilidade, como estorno ou confirmação tardia, coloca a chave publicada em revisão e retira sua projeção pública. Operações ficam bloqueadas sem reescrever resultados anteriores. Antes de qualquer conferência/placar, é possível retirar a publicação e sortear novamente; a revisão após o início é uma próxima entrega. Não se reabrem inscrições com chaves publicadas.
+Uma alteração de elegibilidade, como estorno ou confirmação tardia, coloca a chave publicada em revisão e retira sua projeção pública. Operações ficam bloqueadas sem reescrever resultados anteriores. Antes de qualquer conferência/placar, é possível retirar a publicação e sortear novamente; a revisão seletiva descrita abaixo permite refazer categorias afetadas que ainda não foram operadas. Não se reabrem inscrições com chaves publicadas.
 
 Limites: eventos de teste, recorte Gi adulto/master, até 64 atletas por categoria e de uma a oito áreas distribuídas de forma simples. As categorias de três atletas, os avanços livres e o atleta único reutilizam o motor inicial. A revisão de resultados e a conformidade esportiva completa permanecem pendentes.
 
@@ -41,6 +41,20 @@ O perfil de descanso usa a duração da categoria entre lutas e o dobro antes da
 O público recebe apenas a fila esportiva, horários e chamadas. Presenças, pesagem e auditoria permanecem na gestão. Chaves, cronograma e chamadas só aparecem após o encerramento das inscrições e a publicação das chaves; links antecipados direcionam para a checagem. Mudança na elegibilidade bloqueia chamadas, remanejamento e cronograma juntamente com as demais operações. Todos os comandos preservam versão, autorização e auditoria atômica.
 
 A configuração e as chamadas são extensões compatíveis do agregado JSON existente; não há alteração das migrações aplicadas. Estados anteriores recebem valores iniciais sem reescrever resultados ou relógios. Novas lutas desses estados também passam a exigir chamada, presença e descanso; lutas que já foram iniciadas continuam podendo ser retomadas.
+
+## Revisão seletiva das chaves (0.6)
+
+A gestão oferece **Revisão das chaves**, com uma proposta calculada no servidor a partir das inscrições ativas e confirmadas. Ela mostra entradas, saídas, categorias preservadas, resultados preservados e chamadas que serão canceladas. Aplicar exige justificativa de 15 a 600 caracteres, confirmação explícita, versões atuais e a identificação da proposta conferida.
+
+A revisão refaz somente categorias cuja composição mudou e que ainda não tenham luta iniciada, resultado registrado ou premiação de atleta único conferida. Conferências dos atletas mantidos são preservadas, chamadas das categorias refeitas são canceladas e as novas lutas recebem identificadores próprios. Categorias não afetadas mantêm seus confrontos, resultados, placares, áreas e relógios, inclusive se uma luta estiver em andamento. O cronograma é recalculado e a publicação informa a revisão.
+
+Uma mudança que atinja uma categoria já operada bloqueia a proposta inteira. Trocar participantes em categorias operadas, rever resultados, retirar atletas após participação ou aplicar desistência técnica exigem um fluxo próprio ainda não implementado. A revisão desta versão não altera a situação financeira nem cria elegibilidade para atletas pendentes/estornados.
+
+`arena_competition_reviews` guarda os estados anterior e posterior, versões, responsável e justificativa; a migração acrescenta a tabela sem alterar as migrações aplicadas. Estado esportivo, registro da revisão e auditoria são escritos no mesmo lote D1. Conflito de versão, nova mudança financeira ou falha ao guardar o histórico impede a aplicação. A versão anterior é preservada para análise; não há restauração automática pela interface.
+
+Proposta, justificativa e estados anteriores são privados da organização. Antes do encerramento das inscrições, a API continua retendo chaves/cronograma; o usuário público recebe apenas a checagem dos confirmados. Aplicar a revisão exige inscrições encerradas e chaves já publicadas.
+
+Validação: 97 testes automatizados, verificação TypeScript e ensaio adicional no Miniflare D1. O cenário de revisão inclui uma categoria com resultado preservado e outra que passa de dois para três atletas após confirmação tardia. A revisão visual usa um componente com dados fictícios e as chaves públicas da prévia local; o fluxo autenticado hospedado continua pendente de acesso à conta.
 
 ## Entradas
 
@@ -84,4 +98,4 @@ O starter Vinext e as integrações de hospedagem são preservados. Não foi cri
 
 ## Próximas entregas
 
-Conectar o provedor real e a confirmação verificada; completar e homologar a matriz esportiva; homologar sorteio e separar equipes/cabeças de chave; homologar a operação de cronograma, descanso e chamadas; atribuir funções e controle por mesa; implementar revisão de resultados; ensaiar concorrência, perda de conexão, backup e restauração antes do piloto.
+Conectar o provedor real e a confirmação verificada; completar e homologar a matriz esportiva; homologar sorteio e separar equipes/cabeças de chave; homologar a operação de cronograma, descanso e chamadas; atribuir funções e controle por mesa; implementar revisão técnica de resultados e categorias já operadas; ensaiar concorrência, perda de conexão, backup e restauração antes do piloto.

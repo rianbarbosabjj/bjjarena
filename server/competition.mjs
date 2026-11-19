@@ -3,6 +3,7 @@ import { makeCategory, applyCommand, participants, matchStatus, placements } fro
 import { PlatformError } from './errors.mjs';
 import { canViewPublicBrackets } from '../public-visibility.mjs';
 import { initializeOperations, projectSchedule, restForMatch, startBlock, hasStarted, applyOperation, OPERATION_COMMANDS } from '../operations.mjs';
+import { buildRosterReview } from './roster-review.mjs';
 
 const ensure = (condition, message, status = 409) => { if (!condition) throw new PlatformError(message, status); };
 const RULES = { Branca: 300, Azul: 360, Roxa: 420 };
@@ -26,12 +27,48 @@ export async function createCompetitionState(event, registrations, { seed, matCo
     categories.push(makeCategory({ id, title: spec.name, weightLabel: spec.description, maxWeight: spec.maxWeight, duration: RULES[spec.belt], mat: categories.length % matCount + 1 }, await drawOrder(entries.map(r=>r.id), seed + ':' + id)));
   }
   ensure(categories.length, 'Não há inscrições confirmadas para gerar as chaves.');
-  return initializeOperations({ schemaVersion: 1, revision: 0, event: { id: event.id, name: event.name, rules: 'Perfil de teste Arena 0.5' }, draw: { algorithm: DRAW_ALGORITHM, seed, matCount, generatedAt: at }, teams, athletes, categories, audit: [] });
+  return initializeOperations({ schemaVersion: 1, revision: 0, event: { id: event.id, name: event.name, rules: 'Perfil de teste Arena 0.6' }, draw: { algorithm: DRAW_ALGORITHM, seed, matCount, generatedAt: at }, teams, athletes, categories, audit: [] });
 }
 /** One versioned aggregate per event makes results, advancement and audit atomic. */
 export class ArenaCompetition {
   constructor(platform, { seed = () => crypto.randomUUID() } = {}) { this.p = platform; this.seed = seed; }
   async row(eventId) { return this.p.first('SELECT * FROM arena_competitions WHERE event_id=?', eventId); }
+  async eligibleRegistrations(eventId) {
+    return (await this.p.all("SELECT id,category_id,athlete_data FROM arena_registrations WHERE event_id=? AND status='active' AND payment_status='confirmed' ORDER BY id",eventId)).map(r=>({id:r.id,categoryId:r.category_id,athlete:JSON.parse(r.athlete_data)}));
+  }
+  async reviewHistory(user,eventId) {
+    await this.p.managedEvent(user,eventId);
+    return (await this.p.all('SELECT id,from_version,to_version,from_roster_version,to_roster_version,reason,details,created_at FROM arena_competition_reviews WHERE event_id=? ORDER BY to_version DESC LIMIT 20',eventId)).map(r=>({id:r.id,fromVersion:r.from_version,toVersion:r.to_version,fromRosterVersion:r.from_roster_version,toRosterVersion:r.to_roster_version,reason:r.reason,details:JSON.parse(r.details),at:r.created_at}));
+  }
+  async prepareReview(user,eventId,allowUnavailable=false) {
+    const event=await this.p.managedEvent(user,eventId),row=await this.row(eventId);
+    ensure(event.kind==='test','Revisão disponível apenas no ambiente de teste.',403);
+    if(allowUnavailable&&(!row?.published_at||event.status!=='closed'))return {event,row,proposal:{status:'unavailable',changes:[]},next:null};
+    ensure(row?.published_at&&event.status==='closed','A revisão exige inscrições encerradas e chaves publicadas.');
+    if(row.source_roster_version===event.rosterVersion)return {event,row,proposal:{status:'current',version:row.version,changes:[]},next:null};
+    const registrations=await this.eligibleRegistrations(eventId);
+    return {event,row,...await buildRosterReview({event,row,registrations,at:this.p.now(),createState:createCompetitionState})};
+  }
+  async reviewView(user,eventId) {
+    const {proposal}=await this.prepareReview(user,eventId,true);
+    return {...proposal,history:await this.reviewHistory(user,eventId),serverNow:this.p.now()};
+  }
+  async applyReview(user,eventId,input) {
+    const {event,row,proposal,next}=await this.prepareReview(user,eventId);
+    ensure(input.version===row.version&&input.rosterVersion===event.rosterVersion&&input.eventVersion===event.version&&input.fingerprint===proposal.fingerprint,'A proposta mudou. Confira uma nova prévia da revisão.');
+    ensure(proposal.status==='ready'&&next,'Esta revisão afeta uma categoria já operada ou exige intervenção técnica.');
+    ensure(input.confirm===true,'Confirme a revisão apresentada antes de aplicar.',400);
+    const reason=typeof input.reason==='string'?input.reason.trim():'';
+    ensure(reason.length>=15&&reason.length<=600,'Informe uma justificativa de 15 a 600 caracteres.',400);
+    const id=this.p.id(),at=this.p.now(),details={categories:proposal.changes,preservedCategories:proposal.preservedCategories,preservedResults:proposal.preservedResults,fingerprint:proposal.fingerprint,previousPublishedAt:row.published_at};
+    const result=await this.p.db.batch([
+      this.p.stmt("UPDATE arena_competitions SET data=?,source_roster_version=?,version=version+1,published_at=?,updated_at=? WHERE event_id=? AND version=? AND source_roster_version=? AND published_at IS NOT NULL AND EXISTS(SELECT 1 FROM arena_events WHERE id=? AND version=? AND roster_version=? AND status='closed')",JSON.stringify(next),event.rosterVersion,at,at,eventId,row.version,row.source_roster_version,eventId,event.version,event.rosterVersion),
+      this.p.stmt('INSERT INTO arena_competition_reviews (id,event_id,from_version,to_version,from_roster_version,to_roster_version,actor_id,reason,previous_data,next_data,details,created_at) SELECT ?,?,?,?,?,?,?,?,?,?,?,? WHERE changes()=1',id,eventId,row.version,row.version+1,row.source_roster_version,event.rosterVersion,user.userId,reason,row.data,JSON.stringify(next),JSON.stringify(details),at),
+      this.p.auditStatement(user.userId,event.organizerId,eventId,'competition.roster-review',id,{reason,fromVersion:row.version,toVersion:row.version+1,fromRosterVersion:row.source_roster_version,toRosterVersion:event.rosterVersion,changedCategories:proposal.changes.map(c=>c.categoryId),preservedResults:proposal.preservedResults},'WHERE changes()=1'),
+    ]);
+    ensure(result[0].meta.changes===1,'A competição ou o financeiro mudou. Confira uma nova prévia da revisão.');
+    return this.managerView(user,eventId);
+  }
   async managerView(user, eventId) {
     const event = await this.p.managedEvent(user, eventId), row = await this.row(eventId);
     if (!row) return { status: 'empty', version: 0, currentRosterVersion: event.rosterVersion, serverNow: this.p.now(), state: null };
@@ -47,7 +84,7 @@ export class ArenaCompetition {
     if (row.source_roster_version !== row.current_roster_version) return { ...base, status: 'review' };
     const state = initializeOperations(JSON.parse(row.data));
     return {
-      ...base, status: 'published', version: row.version, publishedAt: row.published_at, matCount: state.draw.matCount, schedule: projectSchedule(state,Date.parse(base.serverNow)),
+      ...base, status: 'published', version: row.version, publishedAt: row.published_at, revisionNotice: state.lastRosterReview || null, matCount: state.draw.matCount, schedule: projectSchedule(state,Date.parse(base.serverNow)),
       athletes: state.athletes.map(a=>({ id: a.id, name: a.name, teamId: a.teamId })),
       teams: state.teams.map(t=>({ id: t.id, name: t.name })),
       categories: state.categories.map(c=>({ id: c.id, title: c.title, weightLabel: c.weightLabel, duration: c.duration, athleteIds: c.athleteIds, podium: placements(state,c).map(p=>({ athleteId: p.athleteId, place: p.place })), matches: c.matches.map(m=>({ id: m.id, round: m.round, mat: m.mat, queueOrder: m.queueOrder, participants: participants(c,m), slots: m.slots, call: m.call ? {count:m.call.count,lastCalledAt:m.call.lastCalledAt} : null, rest: restForMatch(state,c,m,Date.parse(base.serverNow)), status: matchStatus(c,m)==='ready'&&state.audit.some(a=>a.action==='start'&&a.matchId===m.id)?'paused':matchStatus(c,m), score: m.score, clock: m.clock, result: m.result ? { winnerId: m.result.winnerId, loserId: m.result.loserId, method: m.result.method, technique: m.result.technique || null, auto: !!m.result.auto, elapsedMs: m.result.elapsedMs ?? null, at: m.result.at ?? null } : null })) })),

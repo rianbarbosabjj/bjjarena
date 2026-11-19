@@ -206,6 +206,9 @@ export async function handleArenaRequest(request, { db, user, now = undefined, i
     else if (path[0] === 'events' && path.length === 3 && method === 'GET' && path[2] === 'audit') result = await service.audit(user, path[1]);
     else if (path[0] === 'events' && path.length === 3 && method === 'GET' && path[2] === 'brackets') result = await sports.publicView(path[1]);
     else if (path[0] === 'events' && path.length === 3 && method === 'GET' && path[2] === 'competition') result = await sports.managerView(user, path[1]);
+    else if (path[0] === 'events' && path.length === 4 && path[2] === 'competition' && path[3] === 'review' && method === 'GET') result = await sports.reviewView(user,path[1]);
+    else if (path[0] === 'events' && path.length === 4 && path[2] === 'competition' && path[3] === 'review' && method === 'POST') result = await sports.applyReview(user,path[1],input);
+    else if (path[0] === 'events' && path.length === 4 && path[2] === 'competition' && path[3] === 'reviews' && method === 'GET') result = await sports.reviewHistory(user,path[1]);
     else if (path[0] === 'events' && path.length === 4 && method === 'POST' && path[2] === 'competition' && path[3] === 'generate') result = await sports.generate(user, path[1], input);
     else if (path[0] === 'events' && path.length === 4 && method === 'POST' && path[2] === 'competition' && path[3] === 'publication') result = await sports.publication(user, path[1], input);
     else if (path[0] === 'events' && path.length === 4 && method === 'POST' && path[2] === 'competition' && path[3] === 'commands') result = await sports.command(user, path[1], input);
