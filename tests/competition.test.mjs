@@ -15,7 +15,7 @@ const rejects=(f,status=409)=>assert.rejects(f,e=>e.status===status);
 async function fixture({count=4,pending=0,path}={}){
  const db=new LocalD1(path);db.migrate();let time=Date.parse('2026-11-18T17:00:00Z');
  const p=new ArenaPlatform(db,{now:()=>new Date(time).toISOString()}),sports=new ArenaCompetition(p,{seed:()=> 'fixed-draw-seed'});
- const org=await p.createOrganizer(owner,{name:'Equipe de organização'});
+ const org=await p.createOrganizer(owner,{name:'Equipe de organização'});await p.plans.choose(owner,org.id,{planId:'competition-test',catalogVersion:'arena-test-v1',version:0,confirmTest:true});
  let event=await p.createEvent(owner,{organizerId:org.id,name:'Competição esportiva de teste',city:'Brasília',uf:'DF',venue:'Ginásio de teste',date:'2027-02-20',deadline:'2027-02-10',price:13990,categoryIds:['adulto-azul-leve'],regulationText:'Edital de desenvolvimento. Nenhuma cobrança.'});
  event=await p.changeEvent(owner,event.id,{action:'publish',version:event.version});event=await p.changeEvent(owner,event.id,{action:'open',version:event.version});
  const registrations=[];

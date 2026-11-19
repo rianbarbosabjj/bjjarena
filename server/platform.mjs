@@ -1,6 +1,7 @@
 import { CATEGORIES } from '../commerce.mjs';
 import { ArenaCompetition } from './competition.mjs';
 import { PlatformError } from './errors.mjs';
+import {ArenaPlans,planCatalog} from './plans.mjs';
 export { PlatformError } from './errors.mjs';
 const ensure = (value, message, status = 400) => { if (!value) throw new PlatformError(message, status); };
 const text = (v, label, max = 100) => {
@@ -20,7 +21,7 @@ const registrationDto = row => ({ id: row.id, eventId: row.event_id, athleteId: 
 
 /** D1 is the source of truth. Multi-record writes use atomic batches. */
 export class ArenaPlatform {
-  constructor(db, { now = () => new Date().toISOString(), id = () => crypto.randomUUID() } = {}) { this.db = db; this.now = now; this.id = id; }
+  constructor(db, { now = () => new Date().toISOString(), id = () => crypto.randomUUID() } = {}) { this.db = db; this.now = now; this.id = id; this.plans=new ArenaPlans(this); }
   stmt(sql, ...args) { return this.db.prepare(sql).bind(...args); }
   async all(sql, ...args) { return (await this.stmt(sql, ...args).all()).results; }
   async first(sql, ...args) { return this.stmt(sql, ...args).first(); }
@@ -33,6 +34,7 @@ export class ArenaPlatform {
     const row = await this.first('SELECT * FROM arena_events WHERE id=?', eventId);
     ensure(row, 'Competição não encontrada.', 404); await this.member(user, row.organizer_id); return eventDto(row);
   }
+  async managedFeature(user,eventId,feature){const event=await this.managedEvent(user,eventId);const entitlement=await this.plans.requireFeature(event.organizerId,feature);return {...event,entitlement};}
   auditStatement(userId, organizerId, eventId, action, resourceId, details, condition = '', args = []) {
     return this.stmt(`INSERT INTO arena_audit (id, organizer_id, event_id, actor_id, action, resource_id, details, at) SELECT ?,?,?,?,?,?,?,? ${condition}`, this.id(), organizerId, eventId, userId, action, resourceId, JSON.stringify(details), this.now(), ...args);
   }
@@ -47,7 +49,8 @@ export class ArenaPlatform {
       this.all('SELECT * FROM arena_registrations WHERE athlete_id=? ORDER BY created_at', uid),
       this.all('SELECT DISTINCT e.* FROM arena_events e JOIN arena_registrations r ON e.id=r.event_id WHERE r.athlete_id=?', uid),
     ]);
-    return { user: { displayName: user.displayName || 'Atleta', userId: uid }, profile: profileDto(profile), organizers, managedEvents: managed.map(eventDto), registrations: mine.map(registrationDto), registrationEvents: related.map(eventDto) };
+    const organizations=await Promise.all(organizers.map(async org=>({...org,plan:await this.plans.selection(org.id)})));
+    return { user: { displayName: user.displayName || 'Atleta', userId: uid }, profile: profileDto(profile), organizers:organizations, managedEvents: managed.map(eventDto), registrations: mine.map(registrationDto), registrationEvents: related.map(eventDto) };
   }
   async createOrganizer(user, input) {
     const uid = this.user(user), name = text(input.name, 'o nome da organização');
@@ -55,7 +58,7 @@ export class ArenaPlatform {
     if (existing) return existing;
     const id = this.id();
     try { await this.db.batch([
-      this.stmt('INSERT INTO arena_organizers (id,owner_id,name,created_at) VALUES (?,?,?,?)', id, uid, name, this.now()),
+      this.stmt('INSERT INTO arena_organizers (id,owner_id,name,created_at,onboarding_version) VALUES (?,?,?,?,1)', id, uid, name, this.now()),
       this.stmt("INSERT INTO arena_memberships (organizer_id,user_id,role) VALUES (?,?,'owner')", id, uid),
       this.auditStatement(uid, id, null, 'organizer.created', id, { name }),
     ]); } catch (error) {
@@ -94,10 +97,12 @@ export class ArenaPlatform {
   }
   async createEvent(user, input) {
     const uid = await this.member(user, input.organizerId), data = this.validateEvent(input), id = this.id();
-    await this.db.batch([
-      this.stmt('INSERT INTO arena_events (id,organizer_id,data,created_at,updated_at) VALUES (?,?,?,?,?)', id, input.organizerId, JSON.stringify(data), this.now(), this.now()),
-      this.auditStatement(uid, input.organizerId, id, 'event.created', id, { kind: 'test', status: 'draft' }),
+    const entitlement=await this.plans.requireFeature(input.organizerId,'events');
+    const result=await this.db.batch([
+      this.stmt(`INSERT INTO arena_events (id,organizer_id,data,created_at,updated_at) SELECT ?,?,?,?,? WHERE ${entitlement.sql}`, id, input.organizerId, JSON.stringify(data), this.now(), this.now(),...entitlement.args),
+      this.auditStatement(uid, input.organizerId, id, 'event.created', id, { kind: 'test', status: 'draft' },'WHERE changes()=1'),
     ]);
+    ensure(result[0].meta.changes===1,'O plano mudou. Atualize a página antes de criar o evento.',409);
     return this.managedEvent(user, id);
   }
   async changeEvent(user, eventId, input) {
@@ -196,9 +201,11 @@ export async function handleArenaRequest(request, { db, user, now = undefined, i
     }
     let result, status = 200;
     if (method === 'GET' && path.join('/') === 'catalog') result = await service.catalog();
+    else if (method === 'GET' && path.join('/') === 'plans') result = planCatalog();
     else if (method === 'GET' && path.join('/') === 'me') result = await service.me(user);
     else if (method === 'PUT' && path.join('/') === 'profile') result = await service.saveProfile(user, input);
     else if (method === 'POST' && path.join('/') === 'organizers') { result = await service.createOrganizer(user, input); status = 201; }
+    else if (method === 'POST' && path[0]==='organizers' && path.length===3 && path[2]==='plan') result=await service.plans.choose(user,path[1],input);
     else if (method === 'POST' && path.join('/') === 'events') { result = await service.createEvent(user, input); status = 201; }
     else if (path[0] === 'events' && path[1] && path.length === 2 && method === 'PATCH') result = await service.changeEvent(user, path[1], input);
     else if (path[0] === 'events' && path.length === 3 && method === 'GET' && path[2] === 'checking') result = await service.checking(path[1]);

@@ -11,7 +11,7 @@ const profile = { name: 'Atleta de Teste', team: 'Equipe Arena', belt: 'Azul', s
 const eventInput = { name: 'Arena Teste', city: 'Brasília', uf: 'DF', date: '2027-02-20', deadline: '2027-02-10', venue: 'Ginásio de teste', price: 13990, categoryIds: ['adulto-azul-leve'], regulationText: 'Edital de teste. Nenhuma cobrança real.' };
 function fixture(path) { const db = new LocalD1(path); db.migrate(); return { db, svc: new ArenaPlatform(db, { now: () => '2026-11-18T17:00:00Z' }) }; }
 async function prepared(options = {}) {
-  const f = fixture(); const org = await f.svc.createOrganizer(owner, { name: 'BJJ Digital' });
+  const f = fixture(); const org = await f.svc.createOrganizer(owner, { name: 'BJJ Digital' });await f.svc.plans.choose(owner,org.id,{planId:'competition-test',catalogVersion:'arena-test-v1',version:0,confirmTest:true});
   let event = await f.svc.createEvent(owner, { ...eventInput, organizerId: org.id });
   if (!options.draft) { event = await f.svc.changeEvent(owner, event.id, { version: event.version, action: 'publish' }); event = await f.svc.changeEvent(owner, event.id, { version: event.version, action: 'open' }); }
   await f.svc.saveProfile(athlete, profile);

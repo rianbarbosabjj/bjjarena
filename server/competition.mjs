@@ -27,7 +27,7 @@ export async function createCompetitionState(event, registrations, { seed, matCo
     categories.push(makeCategory({ id, title: spec.name, weightLabel: spec.description, maxWeight: spec.maxWeight, duration: RULES[spec.belt], mat: categories.length % matCount + 1 }, await drawOrder(entries.map(r=>r.id), seed + ':' + id)));
   }
   ensure(categories.length, 'Não há inscrições confirmadas para gerar as chaves.');
-  return initializeOperations({ schemaVersion: 1, revision: 0, event: { id: event.id, name: event.name, rules: 'Perfil de teste Arena 0.6' }, draw: { algorithm: DRAW_ALGORITHM, seed, matCount, generatedAt: at }, teams, athletes, categories, audit: [] });
+  return initializeOperations({ schemaVersion: 1, revision: 0, event: { id: event.id, name: event.name, rules: 'Perfil de teste Arena 0.7' }, draw: { algorithm: DRAW_ALGORITHM, seed, matCount, generatedAt: at }, teams, athletes, categories, audit: [] });
 }
 /** One versioned aggregate per event makes results, advancement and audit atomic. */
 export class ArenaCompetition {
@@ -37,11 +37,11 @@ export class ArenaCompetition {
     return (await this.p.all("SELECT id,category_id,athlete_data FROM arena_registrations WHERE event_id=? AND status='active' AND payment_status='confirmed' ORDER BY id",eventId)).map(r=>({id:r.id,categoryId:r.category_id,athlete:JSON.parse(r.athlete_data)}));
   }
   async reviewHistory(user,eventId) {
-    await this.p.managedEvent(user,eventId);
+    await this.p.managedFeature(user,eventId,'review');
     return (await this.p.all('SELECT id,from_version,to_version,from_roster_version,to_roster_version,reason,details,created_at FROM arena_competition_reviews WHERE event_id=? ORDER BY to_version DESC LIMIT 20',eventId)).map(r=>({id:r.id,fromVersion:r.from_version,toVersion:r.to_version,fromRosterVersion:r.from_roster_version,toRosterVersion:r.to_roster_version,reason:r.reason,details:JSON.parse(r.details),at:r.created_at}));
   }
   async prepareReview(user,eventId,allowUnavailable=false) {
-    const event=await this.p.managedEvent(user,eventId),row=await this.row(eventId);
+    const event=await this.p.managedFeature(user,eventId,'review'),row=await this.row(eventId);
     ensure(event.kind==='test','Revisão disponível apenas no ambiente de teste.',403);
     if(allowUnavailable&&(!row?.published_at||event.status!=='closed'))return {event,row,proposal:{status:'unavailable',changes:[]},next:null};
     ensure(row?.published_at&&event.status==='closed','A revisão exige inscrições encerradas e chaves publicadas.');
@@ -62,7 +62,7 @@ export class ArenaCompetition {
     ensure(reason.length>=15&&reason.length<=600,'Informe uma justificativa de 15 a 600 caracteres.',400);
     const id=this.p.id(),at=this.p.now(),details={categories:proposal.changes,preservedCategories:proposal.preservedCategories,preservedResults:proposal.preservedResults,fingerprint:proposal.fingerprint,previousPublishedAt:row.published_at};
     const result=await this.p.db.batch([
-      this.p.stmt("UPDATE arena_competitions SET data=?,source_roster_version=?,version=version+1,published_at=?,updated_at=? WHERE event_id=? AND version=? AND source_roster_version=? AND published_at IS NOT NULL AND EXISTS(SELECT 1 FROM arena_events WHERE id=? AND version=? AND roster_version=? AND status='closed')",JSON.stringify(next),event.rosterVersion,at,at,eventId,row.version,row.source_roster_version,eventId,event.version,event.rosterVersion),
+      this.p.stmt(`UPDATE arena_competitions SET data=?,source_roster_version=?,version=version+1,published_at=?,updated_at=? WHERE event_id=? AND version=? AND source_roster_version=? AND published_at IS NOT NULL AND EXISTS(SELECT 1 FROM arena_events WHERE id=? AND version=? AND roster_version=? AND status='closed') AND (${event.entitlement.sql})`,JSON.stringify(next),event.rosterVersion,at,at,eventId,row.version,row.source_roster_version,eventId,event.version,event.rosterVersion,...event.entitlement.args),
       this.p.stmt('INSERT INTO arena_competition_reviews (id,event_id,from_version,to_version,from_roster_version,to_roster_version,actor_id,reason,previous_data,next_data,details,created_at) SELECT ?,?,?,?,?,?,?,?,?,?,?,? WHERE changes()=1',id,eventId,row.version,row.version+1,row.source_roster_version,event.rosterVersion,user.userId,reason,row.data,JSON.stringify(next),JSON.stringify(details),at),
       this.p.auditStatement(user.userId,event.organizerId,eventId,'competition.roster-review',id,{reason,fromVersion:row.version,toVersion:row.version+1,fromRosterVersion:row.source_roster_version,toRosterVersion:event.rosterVersion,changedCategories:proposal.changes.map(c=>c.categoryId),preservedResults:proposal.preservedResults},'WHERE changes()=1'),
     ]);
@@ -70,7 +70,7 @@ export class ArenaCompetition {
     return this.managerView(user,eventId);
   }
   async managerView(user, eventId) {
-    const event = await this.p.managedEvent(user, eventId), row = await this.row(eventId);
+    const event = await this.p.managedFeature(user, eventId,'brackets'), row = await this.row(eventId);
     if (!row) return { status: 'empty', version: 0, currentRosterVersion: event.rosterVersion, serverNow: this.p.now(), state: null };
     const state = initializeOperations(JSON.parse(row.data)), serverNow = this.p.now();
     return { status: row.source_roster_version !== event.rosterVersion ? 'review' : row.published_at ? 'published' : 'draft', version: row.version, sourceRosterVersion: row.source_roster_version, currentRosterVersion: event.rosterVersion, publishedAt: row.published_at, serverNow, schedule: projectSchedule(state,Date.parse(serverNow)), state };
@@ -91,7 +91,7 @@ export class ArenaCompetition {
     };
   }
   async generate(user, eventId, input) {
-    const e = await this.p.managedEvent(user,eventId), previous = await this.row(eventId);
+    const e = await this.p.managedFeature(user,eventId,'brackets'), previous = await this.row(eventId);
     ensure(e.kind === 'test', 'Esta operação está disponível apenas em eventos de teste.', 403);
     ensure(e.status === 'closed', 'Encerre as inscrições antes de gerar as chaves.');
     ensure(input.eventVersion === e.version && input.rosterVersion === e.rosterVersion, 'A lista de inscritos mudou. Atualize antes de sortear.');
@@ -101,14 +101,14 @@ export class ArenaCompetition {
     const registrations = (await this.p.all("SELECT * FROM arena_registrations WHERE event_id=? AND status='active' AND payment_status='confirmed' ORDER BY id",eventId)).map(r=>({ id: r.id, categoryId: r.category_id, athlete: JSON.parse(r.athlete_data) }));
     const state = await createCompetitionState(e, registrations, { seed: this.seed(), matCount: input.matCount, at: this.p.now() });
     const guard = "EXISTS (SELECT 1 FROM arena_events WHERE id=? AND version=? AND roster_version=? AND status='closed')";
-    const write = previous ? this.p.stmt(`UPDATE arena_competitions SET data=?,source_roster_version=?,version=version+1,updated_at=? WHERE event_id=? AND version=? AND published_at IS NULL AND json_extract(data,'$.revision')=0 AND ${guard}`,JSON.stringify(state),e.rosterVersion,this.p.now(),eventId,input.version,eventId,e.version,e.rosterVersion)
-      : this.p.stmt(`INSERT INTO arena_competitions (event_id,data,source_roster_version,created_at,updated_at) SELECT ?,?,?,?,? WHERE ${guard} AND NOT EXISTS (SELECT 1 FROM arena_competitions WHERE event_id=?)`,eventId,JSON.stringify(state),e.rosterVersion,this.p.now(),this.p.now(),eventId,e.version,e.rosterVersion,eventId);
+    const write = previous ? this.p.stmt(`UPDATE arena_competitions SET data=?,source_roster_version=?,version=version+1,updated_at=? WHERE event_id=? AND version=? AND published_at IS NULL AND json_extract(data,'$.revision')=0 AND ${guard} AND (${e.entitlement.sql})`,JSON.stringify(state),e.rosterVersion,this.p.now(),eventId,input.version,eventId,e.version,e.rosterVersion,...e.entitlement.args)
+      : this.p.stmt(`INSERT INTO arena_competitions (event_id,data,source_roster_version,created_at,updated_at) SELECT ?,?,?,?,? WHERE ${guard} AND NOT EXISTS (SELECT 1 FROM arena_competitions WHERE event_id=?) AND (${e.entitlement.sql})`,eventId,JSON.stringify(state),e.rosterVersion,this.p.now(),this.p.now(),eventId,e.version,e.rosterVersion,eventId,...e.entitlement.args);
     const result = await this.p.db.batch([write,this.p.auditStatement(user.userId,e.organizerId,eventId,'competition.generated',eventId,{ athletes: registrations.length, categories: state.categories.length, algorithm: DRAW_ALGORITHM, seed: state.draw.seed },'WHERE changes()=1')]);
     ensure(result[0].meta.changes === 1,'A competição mudou durante o sorteio. Atualize a página.');
     return this.managerView(user,eventId);
   }
   async publication(user,eventId,input) {
-    const e = await this.p.managedEvent(user,eventId), row = await this.row(eventId);
+    const e = await this.p.managedFeature(user,eventId,'brackets'), row = await this.row(eventId);
     ensure(e.kind === 'test','Operação disponível apenas no ambiente de teste.',403);
     ensure(row && row.version === input.version,'As chaves mudaram. Atualize a página.');
     const publish = input.action === 'publish';
@@ -119,19 +119,20 @@ export class ArenaCompetition {
     if(publish) ensure(e.status === 'closed' && row.source_roster_version === e.rosterVersion,'A lista de atletas mudou. Gere novamente as chaves antes de publicar.');
     const publishedAt = publish ? this.p.now() : null;
     const result = await this.p.db.batch([
-      this.p.stmt(`UPDATE arena_competitions SET published_at=?,version=version+1,updated_at=? WHERE event_id=? AND version=? AND json_extract(data,'$.revision')=0 AND (?=0 OR EXISTS(SELECT 1 FROM arena_events WHERE id=? AND status='closed' AND roster_version=?))`,publishedAt,this.p.now(),eventId,input.version,publish?1:0,eventId,row.source_roster_version),
+      this.p.stmt(`UPDATE arena_competitions SET published_at=?,version=version+1,updated_at=? WHERE event_id=? AND version=? AND json_extract(data,'$.revision')=0 AND (?=0 OR EXISTS(SELECT 1 FROM arena_events WHERE id=? AND status='closed' AND roster_version=?)) AND (${e.entitlement.sql})`,publishedAt,this.p.now(),eventId,input.version,publish?1:0,eventId,row.source_roster_version,...e.entitlement.args),
       this.p.auditStatement(user.userId,e.organizerId,eventId,publish?'competition.published':'competition.unpublished',eventId,{ version: input.version+1 },'WHERE changes()=1'),
     ]);
     ensure(result[0].meta.changes === 1,'A competição mudou durante a publicação. Atualize a página.');
     return this.managerView(user,eventId);
   }
   async command(user,eventId,input) {
-    const e = await this.p.managedEvent(user,eventId), row = await this.row(eventId);
+    const e = await this.p.managedFeature(user,eventId,'brackets'), row = await this.row(eventId);
     ensure(e.kind === 'test','Operação disponível apenas no ambiente de teste.',403);
     ensure(row && row.version === input.version,'Outra mesa atualizou a competição. Atualize os dados.');
     ensure(row.published_at && e.status === 'closed','Publique as chaves antes de iniciar a operação.');
     ensure(row.source_roster_version === e.rosterVersion,'A lista de atletas elegíveis mudou. As chaves precisam de revisão.');
     const c = input.command;
+    if(c&&OPERATION_COMMANDS.includes(c.type))e.entitlement=await this.p.plans.requireFeature(e.organizerId,'schedule');
     ensure(c && ['checkin','start','pause','score','undo','result',...OPERATION_COMMANDS].includes(c.type),'Comando de luta inválido.',400);
     const command = { type: c.type, categoryId: c.categoryId, matchId: c.matchId };
     if(c.type === 'checkin') { ensure(typeof c.uniform === 'boolean' && typeof c.weight === 'number','Confira peso e uniforme.',400); Object.assign(command,{ athleteId: c.athleteId, weight: c.weight, uniform: c.uniform }); }
@@ -159,7 +160,7 @@ export class ArenaCompetition {
     try { next = OPERATION_COMMANDS.includes(c.type) ? applyOperation(state,command,now) : applyCommand(state,command,now); }
     catch(error) { throw new PlatformError(error.message,409); }
     const result = await this.p.db.batch([
-      this.p.stmt("UPDATE arena_competitions SET data=?,version=version+1,updated_at=? WHERE event_id=? AND version=? AND published_at IS NOT NULL AND source_roster_version=(SELECT roster_version FROM arena_events WHERE id=? AND status='closed')",JSON.stringify(next),this.p.now(),eventId,input.version,eventId),
+      this.p.stmt(`UPDATE arena_competitions SET data=?,version=version+1,updated_at=? WHERE event_id=? AND version=? AND published_at IS NOT NULL AND source_roster_version=(SELECT roster_version FROM arena_events WHERE id=? AND status='closed') AND (${e.entitlement.sql})`,JSON.stringify(next),this.p.now(),eventId,input.version,eventId,...e.entitlement.args),
       this.p.auditStatement(user.userId,e.organizerId,eventId,'competition.'+c.type,c.matchId || c.athleteId || eventId,{ categoryId: c.categoryId, revision: next.revision, method: c.type === 'result' ? c.method : undefined, ...(c.type==='schedule'?next.operations:{}), ...(c.type==='move'?{mat:c.mat,position:c.position}:{}), ...(c.type==='presence'?{athleteId:c.athleteId,present:c.present}:{}) },'WHERE changes()=1'),
     ]);
     ensure(result[0].meta.changes === 1,'Outra mesa ou o financeiro atualizou o evento. Atualize os dados.');

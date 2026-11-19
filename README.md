@@ -1,4 +1,4 @@
-# BJJ Arena · versão 0.6
+# BJJ Arena · versão 0.7
 
 Gestão de competições de jiu-jitsu com a marca oficial BJJ Arena. As páginas de competições, atleta e gestor agora usam uma API autenticada e banco D1. O ambiente publicado permanece privado e exclusivo para desenvolvimento: todos os eventos criados são de teste e não realizam cobranças.
 
@@ -56,11 +56,28 @@ Proposta, justificativa e estados anteriores são privados da organização. Ant
 
 Validação: 97 testes automatizados, verificação TypeScript e ensaio adicional no Miniflare D1. O cenário de revisão inclui uma categoria com resultado preservado e outra que passa de dois para três atletas após confirmação tardia. A revisão visual usa um componente com dados fictícios e as chaves públicas da prévia local; o fluxo autenticado hospedado continua pendente de acesso à conta.
 
+## Plataforma para organizadores e planos (0.7)
+
+O produto segue o modelo definido pelo usuário: uma plataforma para vários gestores se cadastrarem, escolherem um plano e utilizarem os recursos em sua própria organização. A prévia continua privada; a abertura comercial depende de cadastro público independente, condições comerciais e cobrança real.
+
+`/planos.html` apresenta o fluxo **cadastro da organização → escolha do plano → criação dos eventos**. Novas organizações precisam selecionar um plano de teste antes de criar eventos. A gestão oferece **Meu plano**, com comparação, confirmação explícita da escolha e ampliação de recursos. Somente o proprietário seleciona o plano; um gestor delegado continua usando os recursos liberados sem alterar a seleção comercial.
+
+Os planos **Inscrições** e **Competição** são configurações demonstrativas, não uma definição comercial aprovada. Inscrições libera eventos/edital, inscrições, pagamento de teste e checagem; Competição inclui também chaves/conferência/placar, cronograma/chamadas e revisão. Preços, limites, duração e condições ficam indefinidos. Não há cobrança, contratação, renovação ou plano pago ativado nesta entrega. Ampliações de recursos são permitidas no teste; reduções e cancelamento dependem da futura política comercial.
+
+O catálogo possui versão. A seleção guarda plano, versão do catálogo e recursos concedidos pelo servidor em `arena_plan_selections`, com auditoria. Dados de preço, status de pagamento ou recursos enviados pelo navegador não concedem direitos adicionais. A API aplica os bloqueios de módulos e inclui a versão da seleção nas escritas de eventos/chaves/cronograma/revisão; uma mudança concorrente impede a gravação com a autorização antiga.
+
+A migração 0003 acrescenta a tabela de escolhas e identifica novas organizações. Os ambientes de teste anteriores mantêm acesso compatível; isso não os transforma em assinaturas comerciais. Novos cadastros são marcados pelo servidor e não podem pedir acesso legado no formulário.
+
+O acesso da prévia ainda usa identidade do ChatGPT. A hospedagem permanece privada e sua audiência não foi ampliada. Nenhum usuário real foi convidado e nenhuma mensagem foi enviada. O fluxo completo com cadastro público independente e cobrança dos planos ainda precisa ser conectado antes da comercialização.
+
+Validação: 111 testes automatizados aprovados, TypeScript e compilação; ensaio Miniflare D1 com dois organizadores independentes, plano obrigatório, recursos básicos, ampliação e isolamento. Revisão visual da página de planos e do atalho que conserva a opção escolhida na entrada da gestão. O fluxo autenticado de criação/seleção não foi conferido visualmente na hospedagem por exigir login; as operações foram verificadas nos serviços e no D1.
+
 ## Entradas
 
 | Página | Função |
 | --- | --- |
 | `/index.html` | Competições publicadas, edital, inscrição e checagem. |
+| `/planos.html` | Planos demonstrativos e entrada do organizador. |
 | `/atleta.html` | Perfil esportivo, inscrições e situação do pagamento. |
 | `/gestor.html` | Organização, criação/publicação de eventos, inscritos, operações de teste e histórico. |
 | `/operacao/index.html` | Laboratório esportivo anterior: placar e chaves com dados fictícios próprios salvos no navegador. Ainda não usa as inscrições da API. |
@@ -98,4 +115,4 @@ O starter Vinext e as integrações de hospedagem são preservados. Não foi cri
 
 ## Próximas entregas
 
-Conectar o provedor real e a confirmação verificada; completar e homologar a matriz esportiva; homologar sorteio e separar equipes/cabeças de chave; homologar a operação de cronograma, descanso e chamadas; atribuir funções e controle por mesa; implementar revisão técnica de resultados e categorias já operadas; ensaiar concorrência, perda de conexão, backup e restauração antes do piloto.
+Definir preços, limites e política comercial; conectar cadastro público independente, cobrança dos planos e provedor real de inscrições; completar e homologar a matriz esportiva; homologar sorteio e separar equipes/cabeças de chave; homologar a operação de cronograma, descanso e chamadas; atribuir funções e controle por mesa; implementar revisão técnica de resultados e categorias já operadas; ensaiar concorrência, perda de conexão, backup e restauração antes do piloto.

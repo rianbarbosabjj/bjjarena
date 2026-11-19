@@ -4,6 +4,7 @@ import { sqliteTable, text, integer, primaryKey, uniqueIndex } from 'drizzle-orm
 export const organizers = sqliteTable('arena_organizers', {
   id: text('id').primaryKey(), ownerId: text('owner_id').notNull().unique(),
   name: text('name').notNull(), createdAt: text('created_at').notNull(),
+  onboardingVersion: integer('onboarding_version').notNull().default(0),
 });
 export const memberships = sqliteTable('arena_memberships', {
   organizerId: text('organizer_id').notNull().references(() => organizers.id),
@@ -48,3 +49,9 @@ export const competitionReviews = sqliteTable('arena_competition_reviews', {
   previousData: text('previous_data').notNull(), nextData: text('next_data').notNull(),
   details: text('details').notNull(), createdAt: text('created_at').notNull(),
 }, t => [uniqueIndex('arena_review_from_version').on(t.eventId,t.fromVersion)]);
+export const planSelections = sqliteTable('arena_plan_selections', {
+  organizerId: text('organizer_id').primaryKey().references(() => organizers.id),
+  planId: text('plan_id').notNull(), catalogVersion: text('catalog_version').notNull(),
+  entitlements: text('entitlements').notNull(), status: text('status').notNull().default('test'),
+  version: integer('version').notNull().default(1), selectedAt: text('selected_at').notNull(), updatedAt: text('updated_at').notNull(),
+});

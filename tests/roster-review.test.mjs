@@ -10,7 +10,7 @@ const owner={userId:'review-owner'},outsider={userId:'other-owner'},blue='adulto
 const rejects=(fn,status=409)=>assert.rejects(fn,error=>error.status===status);
 async function fixture({blueCount=4,purpleCount=2,pendingCount=1}={}){
  const db=new LocalD1();db.migrate();let time=Date.parse('2026-11-19T17:00:00Z');const p=new ArenaPlatform(db,{now:()=>new Date(time).toISOString()}),sports=new ArenaCompetition(p,{seed:()=> 'review-seed'});
- const org=await p.createOrganizer(owner,{name:'Organização de revisão'});let event=await p.createEvent(owner,{organizerId:org.id,name:'Evento para revisão de chaves',city:'Brasília',uf:'DF',venue:'Ginásio de teste',date:'2027-02-20',deadline:'2027-02-10',price:13990,categoryIds:[blue,purple],regulationText:'Somente teste, sem cobranças.'});
+ const org=await p.createOrganizer(owner,{name:'Organização de revisão'});await p.plans.choose(owner,org.id,{planId:'competition-test',catalogVersion:'arena-test-v1',version:0,confirmTest:true});let event=await p.createEvent(owner,{organizerId:org.id,name:'Evento para revisão de chaves',city:'Brasília',uf:'DF',venue:'Ginásio de teste',date:'2027-02-20',deadline:'2027-02-10',price:13990,categoryIds:[blue,purple],regulationText:'Somente teste, sem cobranças.'});
  for(const action of ['publish','open'])event=await p.changeEvent(owner,event.id,{action,version:event.version});
  const registrations=[],pending=[];
  for(let i=0;i<blueCount+purpleCount+pendingCount;i++){
