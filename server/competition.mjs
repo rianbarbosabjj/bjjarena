@@ -2,6 +2,7 @@ import { CATEGORIES } from '../commerce.mjs';
 import { makeCategory, applyCommand, participants, matchStatus, placements } from '../operacao/engine.mjs';
 import { PlatformError } from './errors.mjs';
 import { canViewPublicBrackets } from '../public-visibility.mjs';
+import { initializeOperations, projectSchedule, restForMatch, startBlock, hasStarted, applyOperation, OPERATION_COMMANDS } from '../operations.mjs';
 
 const ensure = (condition, message, status = 409) => { if (!condition) throw new PlatformError(message, status); };
 const RULES = { Branca: 300, Azul: 360, Roxa: 420 };
@@ -25,7 +26,7 @@ export async function createCompetitionState(event, registrations, { seed, matCo
     categories.push(makeCategory({ id, title: spec.name, weightLabel: spec.description, maxWeight: spec.maxWeight, duration: RULES[spec.belt], mat: categories.length % matCount + 1 }, await drawOrder(entries.map(r=>r.id), seed + ':' + id)));
   }
   ensure(categories.length, 'Não há inscrições confirmadas para gerar as chaves.');
-  return { schemaVersion: 1, revision: 0, event: { id: event.id, name: event.name, rules: 'Perfil de teste Arena 0.4' }, draw: { algorithm: DRAW_ALGORITHM, seed, matCount, generatedAt: at }, teams, athletes, categories, audit: [] };
+  return initializeOperations({ schemaVersion: 1, revision: 0, event: { id: event.id, name: event.name, rules: 'Perfil de teste Arena 0.5' }, draw: { algorithm: DRAW_ALGORITHM, seed, matCount, generatedAt: at }, teams, athletes, categories, audit: [] });
 }
 /** One versioned aggregate per event makes results, advancement and audit atomic. */
 export class ArenaCompetition {
@@ -34,21 +35,22 @@ export class ArenaCompetition {
   async managerView(user, eventId) {
     const event = await this.p.managedEvent(user, eventId), row = await this.row(eventId);
     if (!row) return { status: 'empty', version: 0, currentRosterVersion: event.rosterVersion, serverNow: this.p.now(), state: null };
-    return { status: row.source_roster_version !== event.rosterVersion ? 'review' : row.published_at ? 'published' : 'draft', version: row.version, sourceRosterVersion: row.source_roster_version, currentRosterVersion: event.rosterVersion, publishedAt: row.published_at, serverNow: this.p.now(), state: JSON.parse(row.data) };
+    const state = initializeOperations(JSON.parse(row.data)), serverNow = this.p.now();
+    return { status: row.source_roster_version !== event.rosterVersion ? 'review' : row.published_at ? 'published' : 'draft', version: row.version, sourceRosterVersion: row.source_roster_version, currentRosterVersion: event.rosterVersion, publishedAt: row.published_at, serverNow, schedule: projectSchedule(state,Date.parse(serverNow)), state };
   }
   async publicView(eventId) {
     // Read publication and current eligibility in a single SQLite snapshot.
     const row = await this.p.first("SELECT e.status AS event_status,e.roster_version AS current_roster_version,c.data,c.version,c.source_roster_version,c.published_at FROM arena_events e LEFT JOIN arena_competitions c ON c.event_id=e.id WHERE e.id=? AND e.status IN ('soon','open','closed')",eventId);
     ensure(row, 'Competição não encontrada.', 404);
-    const base = { status: 'empty', serverNow: this.p.now(), categories: [], athletes: [], teams: [] };
+    const base = { status: 'empty', serverNow: this.p.now(), categories: [], athletes: [], teams: [], schedule: null };
     if (!canViewPublicBrackets({status:row.event_status}) || !row.published_at) return base;
     if (row.source_roster_version !== row.current_roster_version) return { ...base, status: 'review' };
-    const state = JSON.parse(row.data);
+    const state = initializeOperations(JSON.parse(row.data));
     return {
-      ...base, status: 'published', version: row.version, publishedAt: row.published_at,
+      ...base, status: 'published', version: row.version, publishedAt: row.published_at, matCount: state.draw.matCount, schedule: projectSchedule(state,Date.parse(base.serverNow)),
       athletes: state.athletes.map(a=>({ id: a.id, name: a.name, teamId: a.teamId })),
       teams: state.teams.map(t=>({ id: t.id, name: t.name })),
-      categories: state.categories.map(c=>({ id: c.id, title: c.title, weightLabel: c.weightLabel, duration: c.duration, athleteIds: c.athleteIds, podium: placements(state,c).map(p=>({ athleteId: p.athleteId, place: p.place })), matches: c.matches.map(m=>({ id: m.id, round: m.round, mat: m.mat, participants: participants(c,m), slots: m.slots, status: matchStatus(c,m)==='ready'&&state.audit.some(a=>a.action==='start'&&a.matchId===m.id)?'paused':matchStatus(c,m), score: m.score, clock: m.clock, result: m.result ? { winnerId: m.result.winnerId, loserId: m.result.loserId, method: m.result.method, technique: m.result.technique || null, auto: !!m.result.auto, elapsedMs: m.result.elapsedMs ?? null, at: m.result.at ?? null } : null })) })),
+      categories: state.categories.map(c=>({ id: c.id, title: c.title, weightLabel: c.weightLabel, duration: c.duration, athleteIds: c.athleteIds, podium: placements(state,c).map(p=>({ athleteId: p.athleteId, place: p.place })), matches: c.matches.map(m=>({ id: m.id, round: m.round, mat: m.mat, queueOrder: m.queueOrder, participants: participants(c,m), slots: m.slots, call: m.call ? {count:m.call.count,lastCalledAt:m.call.lastCalledAt} : null, rest: restForMatch(state,c,m,Date.parse(base.serverNow)), status: matchStatus(c,m)==='ready'&&state.audit.some(a=>a.action==='start'&&a.matchId===m.id)?'paused':matchStatus(c,m), score: m.score, clock: m.clock, result: m.result ? { winnerId: m.result.winnerId, loserId: m.result.loserId, method: m.result.method, technique: m.result.technique || null, auto: !!m.result.auto, elapsedMs: m.result.elapsedMs ?? null, at: m.result.at ?? null } : null })) })),
     };
   }
   async generate(user, eventId, input) {
@@ -93,26 +95,35 @@ export class ArenaCompetition {
     ensure(row.published_at && e.status === 'closed','Publique as chaves antes de iniciar a operação.');
     ensure(row.source_roster_version === e.rosterVersion,'A lista de atletas elegíveis mudou. As chaves precisam de revisão.');
     const c = input.command;
-    ensure(c && ['checkin','start','pause','score','undo','result'].includes(c.type),'Comando de luta inválido.',400);
+    ensure(c && ['checkin','start','pause','score','undo','result',...OPERATION_COMMANDS].includes(c.type),'Comando de luta inválido.',400);
     const command = { type: c.type, categoryId: c.categoryId, matchId: c.matchId };
     if(c.type === 'checkin') { ensure(typeof c.uniform === 'boolean' && typeof c.weight === 'number','Confira peso e uniforme.',400); Object.assign(command,{ athleteId: c.athleteId, weight: c.weight, uniform: c.uniform }); }
     if(c.type === 'score') Object.assign(command,{ side: c.side, kind: c.kind, delta: c.delta });
     if(c.type === 'result') Object.assign(command,{ winnerId: c.winnerId, method: c.method, technique: c.technique });
-    const state = JSON.parse(row.data), category = state.categories.find(x=>x.id === c.categoryId), match = category?.matches.find(x=>x.id === c.matchId);
-    if(c.type !== 'checkin') {
+    const state = initializeOperations(JSON.parse(row.data)), category = state.categories.find(x=>x.id === c.categoryId), match = category?.matches.find(x=>x.id === c.matchId);
+    if(c.type === 'schedule') Object.assign(command,{startAt:c.startAt,turnaroundSeconds:c.turnaroundSeconds});
+    if(c.type === 'move') Object.assign(command,{mat:c.mat,position:c.position});
+    if(c.type === 'presence') Object.assign(command,{athleteId:c.athleteId,present:c.present});
+    const now = Date.parse(this.p.now());
+    if(!OPERATION_COMMANDS.includes(c.type) && c.type !== 'checkin') {
       ensure(match,'Luta não encontrada.',404);
-      const started = state.audit.some(a=>a.action === 'start' && a.matchId === match.id);
+      const started = hasStarted(state,match);
       if(['score','undo','pause'].includes(c.type) || (c.type === 'result' && c.method !== 'wo')) ensure(started,'Inicie a luta antes de operar o placar ou confirmar o resultado.');
       if(c.type === 'pause') ensure(match.clock.running,'O relógio já está pausado.');
-      if(c.type === 'start') ensure(!match.clock.running,'O relógio já está em andamento.');
-      if(c.type === 'result' && c.method === 'wo') ensure(state.athletes.find(a=>a.id === c.winnerId)?.checkin === 'approved','Conclua a conferência do vencedor antes de confirmar o W.O.');
+      if(c.type === 'start') {ensure(!match.clock.running,'O relógio já está em andamento.');const block=startBlock(state,category,match,now);ensure(!block,block);}
+      if(c.type === 'result' && c.method === 'wo') {
+        ensure(!started,'O W.O. por ausência deve ser registrado antes do início da luta.');
+        ensure(state.athletes.find(a=>a.id === c.winnerId)?.checkin === 'approved','Conclua a conferência do vencedor antes de confirmar o W.O.');
+        const ids=participants(category,match);
+        ensure(match.call?.count===3 && match.call.presentIds.includes(c.winnerId) && ids.some(id=>id!==c.winnerId&&!match.call.presentIds.includes(id)),'Registre três chamadas, a presença do vencedor e a ausência do adversário antes do W.O.');
+      }
     }
     let next;
-    try { next = applyCommand(state,command,Date.parse(this.p.now())); }
+    try { next = OPERATION_COMMANDS.includes(c.type) ? applyOperation(state,command,now) : applyCommand(state,command,now); }
     catch(error) { throw new PlatformError(error.message,409); }
     const result = await this.p.db.batch([
       this.p.stmt("UPDATE arena_competitions SET data=?,version=version+1,updated_at=? WHERE event_id=? AND version=? AND published_at IS NOT NULL AND source_roster_version=(SELECT roster_version FROM arena_events WHERE id=? AND status='closed')",JSON.stringify(next),this.p.now(),eventId,input.version,eventId),
-      this.p.auditStatement(user.userId,e.organizerId,eventId,'competition.'+c.type,c.matchId || c.athleteId,{ categoryId: c.categoryId, revision: next.revision, method: c.type === 'result' ? c.method : undefined },'WHERE changes()=1'),
+      this.p.auditStatement(user.userId,e.organizerId,eventId,'competition.'+c.type,c.matchId || c.athleteId || eventId,{ categoryId: c.categoryId, revision: next.revision, method: c.type === 'result' ? c.method : undefined, ...(c.type==='schedule'?next.operations:{}), ...(c.type==='move'?{mat:c.mat,position:c.position}:{}), ...(c.type==='presence'?{athleteId:c.athleteId,present:c.present}:{}) },'WHERE changes()=1'),
     ]);
     ensure(result[0].meta.changes === 1,'Outra mesa ou o financeiro atualizou o evento. Atualize os dados.');
     return this.managerView(user,eventId);

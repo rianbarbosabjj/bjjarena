@@ -1,4 +1,4 @@
-# BJJ Arena · versão 0.4
+# BJJ Arena · versão 0.5
 
 Gestão de competições de jiu-jitsu com a marca oficial BJJ Arena. As páginas de competições, atleta e gestor agora usam uma API autenticada e banco D1. O ambiente publicado permanece privado e exclusivo para desenvolvimento: todos os eventos criados são de teste e não realizam cobranças.
 
@@ -20,13 +20,27 @@ A gestão possui o módulo **Chaves e lutas**. Após encerrar as inscrições, o
 
 O servidor guarda o estado esportivo do evento: conferência de peso e uniforme, cronômetro, pontos, vantagens, punições, desfazer marcações, resultado por finalização/placar/decisão/W.O., avanço e pódio. A forma da vitória é preservada; finalização não se transforma em pontos artificiais. Placar e decisão por empate exigem o término do tempo, e o portal não oferece comando para antecipá-lo.
 
-Cada comando usa a versão atual do agregado e grava estado e auditoria no mesmo lote D1. Comandos desatualizados falham sem duplicar pontos ou avançar duas vezes. Uma área não aceita duas lutas com relógio em andamento. Ainda falta concessão de controle por mesa e ensaio de carga distribuída para operação real.
+Cada comando usa a versão atual do agregado e grava estado e auditoria no mesmo lote D1. Comandos desatualizados falham sem duplicar pontos ou avançar duas vezes. Uma área mantém uma única luta iniciada, inclusive durante pausas, até a confirmação do resultado. Ainda falta concessão de controle por mesa e ensaio de carga distribuída para operação real.
 
 Enquanto as inscrições estiverem abertas ou em breve, o público consulta apenas a checagem de atletas confirmados, sem aba nem atalho de chaves. Um link direto de chaves conduz à checagem. Depois do encerramento, a página do evento libera a aba **Chaves e resultados**, e o atleta pode acompanhar a chave a partir da sua inscrição. Os confrontos só são exibidos após a publicação pelo gestor; o servidor também bloqueia sua consulta antecipada. A consulta recebe uma projeção de dados esportivos; peso medido, ano de nascimento, identidade de acesso, pagamentos e histórico interno não são publicados. O acompanhamento atualiza a cada oito segundos; o relógio exibido usa a referência temporal recebida do servidor.
 
 Uma alteração de elegibilidade, como estorno ou confirmação tardia, coloca a chave publicada em revisão e retira sua projeção pública. Operações ficam bloqueadas sem reescrever resultados anteriores. Antes de qualquer conferência/placar, é possível retirar a publicação e sortear novamente; a revisão após o início é uma próxima entrega. Não se reabrem inscrições com chaves publicadas.
 
-Limites: eventos de teste, recorte Gi adulto/master, até 64 atletas por categoria e de uma a oito áreas distribuídas de forma simples. As categorias de três atletas, os avanços livres e o atleta único reutilizam o motor inicial. Cronograma, descanso, revisão de resultados e conformidade esportiva completa permanecem pendentes.
+Limites: eventos de teste, recorte Gi adulto/master, até 64 atletas por categoria e de uma a oito áreas distribuídas de forma simples. As categorias de três atletas, os avanços livres e o atleta único reutilizam o motor inicial. A revisão de resultados e a conformidade esportiva completa permanecem pendentes.
+
+## Cronograma, chamadas e descanso (0.5)
+
+A gestão possui **Cronograma e chamadas**. Depois de publicar as chaves, defina data/hora em Brasília (UTC−03) e intervalo de troca de zero a 600 segundos. A fila estima os horários por área a partir da duração das lutas, classificatórias, descanso, relógio em andamento e resultados já confirmados. As previsões avançam com o horário do servidor e não são uma promessa de início exato. Sem horário definido, ainda é possível chamar e operar as lutas, com indicação de previsão a definir.
+
+É possível mudar uma luta ainda não chamada/iniciada de área e posição. O servidor rejeita ordens que coloquem uma luta antes da sua classificatória, inclusive dependências circulares entre áreas. Lutas chamadas precisam ter sua chamada cancelada antes da mudança. Lutas iniciadas ou concluídas não podem ser remanejadas.
+
+Cada luta aceita até três chamadas auditadas e confirmação/retração de presença dos participantes definidos. A conferência de peso/uniforme continua independente da presença na chamada. O início exige os dois atletas aprovados e presentes, descanso cumprido e área livre. Uma luta pausada reserva a área; retomar a mesma luta não reinicia o descanso. Um W.O. por ausência é manual, exige três chamadas, vencedor presente/aprovado e adversário ausente, antes do início. Três chamadas nunca eliminam automaticamente. Essa sequência é uma política operacional de teste do Arena, não uma reprodução integral do procedimento da federação.
+
+O perfil de descanso usa a duração da categoria entre lutas e o dobro antes da final. Conta a partir do resultado de uma luta efetivamente disputada, também para o perdedor que retorna em chave de três atletas. W.O. e avanço livre não iniciam outro intervalo. Referência consultada em 18/11/2026: **IBJJF General Competition Guidelines, artigo 1.4**, manual oficial JUN/2024 v6.1, disponível em https://ibjjf.com/books-videos/. As alterações de 2027 e a matriz completa continuam sujeitas à homologação do perfil do evento.
+
+O público recebe apenas a fila esportiva, horários e chamadas. Presenças, pesagem e auditoria permanecem na gestão. Chaves, cronograma e chamadas só aparecem após o encerramento das inscrições e a publicação das chaves; links antecipados direcionam para a checagem. Mudança na elegibilidade bloqueia chamadas, remanejamento e cronograma juntamente com as demais operações. Todos os comandos preservam versão, autorização e auditoria atômica.
+
+A configuração e as chamadas são extensões compatíveis do agregado JSON existente; não há alteração das migrações aplicadas. Estados anteriores recebem valores iniciais sem reescrever resultados ou relógios. Novas lutas desses estados também passam a exigir chamada, presença e descanso; lutas que já foram iniciadas continuam podendo ser retomadas.
 
 ## Entradas
 
@@ -70,4 +84,4 @@ O starter Vinext e as integrações de hospedagem são preservados. Não foi cri
 
 ## Próximas entregas
 
-Conectar o provedor real e a confirmação verificada; completar e homologar a matriz esportiva; homologar sorteio e separar equipes/cabeças de chave; construir cronograma e descanso; atribuir funções e controle por mesa; implementar revisão de resultados; ensaiar concorrência, perda de conexão, backup e restauração antes do piloto.
+Conectar o provedor real e a confirmação verificada; completar e homologar a matriz esportiva; homologar sorteio e separar equipes/cabeças de chave; homologar a operação de cronograma, descanso e chamadas; atribuir funções e controle por mesa; implementar revisão de resultados; ensaiar concorrência, perda de conexão, backup e restauração antes do piloto.
